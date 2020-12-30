@@ -1,0 +1,110 @@
+= inquest
+
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+
+A CLI tool, written in Rust, to execute networking-tests, like HTTP, database-queries or simple TCP connections from a host against other systems to troubleshoot outages.
+
+NOTE: This is a learning project for Rust, so it might use language-features in regard to code-organisation, or language-features that would not be necessary for such a small tool.
+
+== Purpose
+
+In an ideal world, all applications would properly monitor their dependencies and provide useful feedback in case of an outage.
+Usually that's not the case.
+
+Monitoring all systems from the outside can catch some but not all problems.
+It could be that a firewall appliance has been updated and suddenly communication between your application and the database is blocked but all other systems are still able to talk to the database.
+
+Anything `inquest` can do, could also be done with scripting (Bash, Python, etc.) but then you will have to manage additional dependencies on your system.
+Bash will need `nc`, `curl`, database-clients and Python will need the interpreter as well as a dependency-management which can be quite troublesome. `inquest` ships everything included, which of course means that it supports what have been baked into it, so it is less generic.
+
+WARNING: unfortunately the Oracle client library still requires the ODPI-C runtime installed.
+I will try to find another way once the features are more stable.
+For now it works.
+
+== Usage
+
+`inquest` can be used to run a set of probes configured with a simple and readable
+https://github.com/lightbend/config/blob/master/HOCON.md[Hocon] specification.
+
+.Sample Specification
+// https://gist.github.com/dcode/0cfbf2699a1fe9b46ff04c41721dda74
+[source,hocon]
+----
+probe-specification {
+
+ # showcasing variable substitution in HOCON
+ httpbin = "https://httpbin.org"
+
+ my-service {
+
+  http = [
+      {
+        url = "${httpbin}/get"
+      },
+      {
+        url = "${httpbin}/status/201 "
+        status = 201
+      }
+    ]
+
+  oracle = [{
+      host = "my-oracle-host"
+      host = ${?ORACLE_HOST} # use this when defined as env
+      port = 1521 # can be omitted when 1521
+      sid = "XE"
+      user = "SYSTEM"
+      password = "hX8AgBVOd/GvecheybpEPA==" # 'changeit'
+      sql {
+        query = "select * from V$SESSION_CONNECT_INFO"
+      }
+    }]
+
+  postgres = [{
+      host = "my-postgres-host"
+      host = ${?POSTGRES_HOST} # # use this when defined as env
+      port = 5432 # can be omitted when 5432
+      user = "admin"
+      password = "hX8AgBVOd/GvecheybpEPA==" # 'changeit'
+      database = "test"
+      sql {
+        query = "SELECT (blks_hit*100/(blks_hit+blks_read))::numeric as hit_ratio FROM pg_stat_database WHERE datname='test';"
+      }
+    }]
+ }
+}
+----
+
+.Run with a "default.conf" in the current folder
+[source,bash]
+----
+./inquest
+----
+
+.Pass the specification not using the default
+[source,bash]
+----
+./inquest --config path/my-file.conf
+----
+
+Later on, it will be possible to execute probes ad-hoc without the need of a config-file.
+
+=== Encryption
+
+Passwords must be encrypted within the HOCON definition, and therefore `inquest` includes an `encrypt` subcommand.
+By default a internal encryption-key is used, but since this can easily be looked up in Github, you can pass in your own by using the `--key` option.
+Remember to also pass this key to `inquest` when running a test.
+
+WARNING: never mix passwords with the default and a custom key in one specification.
+
+[source,bash]
+----
+./inquest encrypt --key RvzQW3MwrcDpPZl8rP3,=HsD1,wdgdew  "my password"
+----
+
+NOTE: you might want to delete the history after using a custom-key

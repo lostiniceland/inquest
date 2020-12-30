@@ -1,0 +1,39 @@
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[package]
+name = "libinquest"
+version = "0.1.0"
+authors = ["Marc Schlegel <marc.schlegel@gmx.de>"]
+edition = "2018"
+description = "A probing tool to check for external service availability."
+
+[dependencies]
+thiserror = "1.0.*"
+anyhow = "1.0"
+log = "0.4.*"
+stderrlog = "0.5.*"
+reqwest = "0.11.*"
+url = "2.2.*" # used by reqwest anyways
+oracle = "0.3.*"
+postgres = "0.19.*"
+tokio-postgres = "0.7.0 " # needed for error-mapping from postgres-crate
+hocon = { version = "0.5.*" }
+secrecy = "0.7.0"
+aes = "0.6.0"
+block-modes = "0.7.0"
+base64 = "0.13.*"
+clap = "2.33.*"
+term = "0.7.*"
+
+[features]
+default = [
+  "reqwest/blocking",
+]
+
+[[test]]
+# separate integration testing
+name = "integration"
+path = "tests/integration.rs"
+
+[profile.release]
+panic = "abort" # the program will not panic because we properly handle everything
+lto = true # link-time-optimizer to reduce binary-size
