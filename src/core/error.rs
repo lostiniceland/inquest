@@ -52,7 +52,7 @@ pub enum InquestError {
     #[error(transparent)]
     CryptoError(#[from] DecodeError),
 
-    #[error("Key must consist of 32 characters but was {length}!")]
+    #[error("Key must consist of 10-32 characters but was {length}!")]
     BadCryptoKeyError { length: usize },
 
     #[error(transparent)]

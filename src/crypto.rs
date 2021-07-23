@@ -6,6 +6,7 @@ use secrecy::{ExposeSecret, SecretString};
 
 use crate::core::Result;
 use crate::core::error::InquestError;
+use std::fmt::format;
 
 // taken from https://markv.nl/blog/symmetric-encryption-in-rust
 
@@ -28,10 +29,11 @@ impl Crypto {
         let key = match key {
             None => SecretString::from_str("RvzQW3Mwrc!_y5-DpPZl8rP3,=HsD1,!").unwrap(),
             Some(key) => {
-                if key.len() != 32 {
+                println!("{}", key.len());
+                if key.len() < 10 || key.len() > 32 {
                     return Err(InquestError::BadCryptoKeyError { length: key.len() });
                 }
-                SecretString::from_str(key).unwrap()
+                SecretString::from_str(format!("{:0>32}", key).as_str()).unwrap()
             }
         };
 
@@ -114,7 +116,7 @@ mod tests {
     #[test]
     // #[should_panic(expected="Key must consist of 32 characters!")]
     fn encryption_with_key_short() {
-        let key = Some("this key is to short");
+        let key = Some("to short"); // less than 10
         let mut result = false;
         if let Err(InquestError::BadCryptoKeyError { .. }) = encrypt("hello world".to_string(), key)
         {
