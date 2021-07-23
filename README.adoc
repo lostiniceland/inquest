@@ -108,3 +108,13 @@ WARNING: never mix passwords with the default and a custom key in one specificat
 ----
 
 NOTE: you might want to delete the history after using a custom-key
+
+== Building
+
+Header files for openssl are required
+
+.Suse Example
+[source,bash]
+----
+sudo zypper in openssl-devel
+----
