@@ -1,9 +1,10 @@
 use hocon::Hocon;
+use secrecy::SecretString;
+
 use crate::core::{Config, Oracle};
 use crate::core::error::InquestError;
-use secrecy::SecretString;
-use crate::input::parser::{parse_sql, GO};
 use crate::core::Result;
+use crate::input::parser::{GO, parse_sql};
 
 pub(crate) fn parse_oracle(hocon: &Hocon) -> Result<Vec<Config>> {
     if let Hocon::Array(oracles) = &hocon {
@@ -44,8 +45,9 @@ fn parse(hocon: &Hocon) -> Result<Config> {
 
 #[cfg(test)]
 mod tests {
-    use secrecy::{ExposeSecret};
-    use crate::core::{Oracle, Config};
+    use secrecy::ExposeSecret;
+
+    use crate::core::{Config, Oracle};
     use crate::input::parser::tests::match_content;
 
     #[test]

@@ -1,12 +1,12 @@
 use std::str::FromStr;
+
 use aes::Aes256;
 use block_modes::{BlockMode, Cbc};
 use block_modes::block_padding::Iso7816;
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::core::Result;
 use crate::core::error::InquestError;
-use std::fmt::format;
+use crate::core::Result;
 
 // taken from https://markv.nl/blog/symmetric-encryption-in-rust
 
@@ -93,8 +93,8 @@ pub fn decrypt_secret(
 
 #[cfg(test)]
 mod tests {
-    use crate::crypto::{encrypt, decrypt};
     use crate::core::error::InquestError;
+    use crate::crypto::{decrypt, encrypt};
 
     #[test]
     fn encryption() {

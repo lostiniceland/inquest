@@ -3,6 +3,7 @@ use std::string::FromUtf8Error;
 use base64::DecodeError;
 use block_modes::BlockModeError;
 use thiserror::Error;
+
 use crate::core::ProbeReport;
 
 #[derive(Error, Debug)]

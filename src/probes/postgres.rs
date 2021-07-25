@@ -1,10 +1,9 @@
-use postgres::{Client, NoTls, Error, Row};
+use postgres::{Client, NoTls};
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::core::{Postgres, Probe, ProbeReport, SqlTest, GlobalOptions, Data, Metrics};
-use crate::core::Result;
-use std::collections::HashMap;
+use crate::core::{Data, GlobalOptions, Metrics, Postgres, Probe, ProbeReport, SqlTest};
 use crate::core::error::InquestError::AssertionError;
+use crate::core::Result;
 
 const PROBE_NAME: &'static str = "Postgres";
 

@@ -1,19 +1,20 @@
+use std::time::Duration;
+
+use hocon::Hocon;
+use log::{warn};
+
+use crate::core::{Config, GlobalOptions, ServiceSpecification, SqlTest};
+use crate::core::error::InquestError;
+use crate::core::Result;
+use crate::input::parser::http::parse_http;
+use crate::input::parser::mssql::parse_mssql;
+use crate::input::parser::oracle::parse_oracle;
+use crate::input::parser::postgres::parse_postgres;
+
 mod http;
 mod oracle;
 mod postgres;
 mod mssql;
-
-use hocon::Hocon;
-use log::{error, warn};
-
-use crate::core::{Config, ServiceSpecification, SqlTest, GlobalOptions};
-use crate::core::error::InquestError;
-use crate::core::Result;
-use std::time::Duration;
-use crate::input::parser::postgres::parse_postgres;
-use crate::input::parser::oracle::parse_oracle;
-use crate::input::parser::http::parse_http;
-use crate::input::parser::mssql::parse_mssql;
 
 const GO: GlobalOptions = GlobalOptions { timeout: Duration::from_secs(30) };
 
@@ -25,7 +26,7 @@ pub fn parse(hocon: &Hocon) -> Result<Vec<ServiceSpecification>> {
     let result = match root {
         Hocon::Hash(service) => service
             .into_iter()
-            .filter(|(k, v)| {
+            .filter(|(_, v)| {
                 let http_present = match v["http"] {
                     Hocon::Array(_) => true,
                     _ => false
@@ -97,7 +98,7 @@ fn parse_sql(hocon: &Hocon) -> Result<Option<SqlTest>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::{ServiceSpecification, Config};
+    use crate::core::{Config, ServiceSpecification};
     use crate::input::parser::parse;
 
     pub fn setup(content: &str) -> Vec<ServiceSpecification> {

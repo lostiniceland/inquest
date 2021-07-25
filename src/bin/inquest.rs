@@ -1,17 +1,14 @@
 #[macro_use]
 extern crate clap;
 
+use std::fmt::{Display, Formatter};
+use std::path::Path;
+
 use anyhow::{Context, Result};
 use clap::{App, Arg, SubCommand};
 
+use libinquest::core::{ProbeReport, run_from_config};
 use libinquest::crypto::encrypt;
-use libinquest::core::{run_from_config, ProbeReport};
-use libinquest::core::error::InquestError;
-use std::fmt::{Display, Formatter};
-use std::path::Path;
-use std::fs::File;
-use std::collections::HashMap;
-
 
 struct ReportDisplay<'a, T>(&'a T);
 
@@ -92,17 +89,17 @@ fn command_execute(config: &Path) -> Result<()> {
 
 impl<'a> Display for ReportDisplay<'a, ProbeReport> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Probe {} for '{}'", self.0.probe_name, self.0.probe_identifier);
-        writeln!(f, "Acquired Data");
+        writeln!(f, "Probe {} for '{}'", self.0.probe_name, self.0.probe_identifier)?;
+        writeln!(f, "Acquired Data")?;
         if !self.0.data.is_empty() {
             for data in &self.0.data {
-                writeln!(f, "\t{}: {}", data.0, data.1);
+                writeln!(f, "\t{}: {}", data.0, data.1)?;
             }
         }
         if !self.0.metrics.is_empty() {
-            writeln!(f, "Acquired Metrics");
+            writeln!(f, "Acquired Metrics")?;
             for metric in &self.0.metrics {
-                writeln!(f, "\t{}:  {}", metric.0, metric.1);
+                writeln!(f, "\t{}:  {}", metric.0, metric.1)?;
             }
         }
         Ok(())

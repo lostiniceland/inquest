@@ -1,9 +1,10 @@
 use hocon::Hocon;
-use crate::core::{Config, Postgres, MSSql};
-use crate::core::error::InquestError;
 use secrecy::SecretString;
-use crate::input::parser::{parse_sql, GO};
+
+use crate::core::{Config, MSSql};
+use crate::core::error::InquestError;
 use crate::core::Result;
+use crate::input::parser::{GO, parse_sql};
 
 pub(crate) fn parse_mssql(hocon: &Hocon) -> Result<Vec<Config>> {
     if let Hocon::Array(mssqls) = &hocon {
@@ -38,8 +39,9 @@ fn parse(hocon: &Hocon) -> Result<Config> {
 
 #[cfg(test)]
 mod tests {
-    use secrecy::{ExposeSecret};
-    use crate::core::{Postgres, Config, MSSql};
+    use secrecy::ExposeSecret;
+
+    use crate::core::{Config, MSSql};
     use crate::input::parser::tests::match_content;
 
     #[test]

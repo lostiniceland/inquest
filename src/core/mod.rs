@@ -1,14 +1,14 @@
-use std::fmt::{Debug, Display, Formatter};
+use core::result;
+use std::fmt::Debug;
 use std::path::Path;
+use std::time::Duration;
+
 use secrecy::SecretString;
+use url::Url;
 
 use crate::core::error::InquestError;
 use crate::crypto::decrypt_secret;
 use crate::input;
-use std::time::Duration;
-use core::result;
-use url::Url;
-use std::collections::HashMap;
 
 pub mod error;
 

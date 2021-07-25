@@ -1,17 +1,13 @@
 use secrecy::{ExposeSecret, SecretString};
-
-use crate::core::{MSSql, Probe, ProbeReport, SqlTest, GlobalOptions, Data, Metrics};
-use crate::core::Result;
-use std::collections::HashMap;
-use crate::core::error::InquestError::AssertionError;
-
-use tiberius::{Client, Config, AuthMethod};
+use tiberius::{AuthMethod, Client, Config};
 use tokio::net::TcpStream;
-use tokio_util::compat::{TokioAsyncWriteCompatExt, Compat};
 // use async_std::net::TcpStream;
 // use async_std::future;
 use tokio::runtime::Runtime;
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio_util::compat::TokioAsyncWriteCompatExt;
+
+use crate::core::{Data, GlobalOptions, MSSql, Probe, ProbeReport, SqlTest};
+use crate::core::Result;
 
 const PROBE_NAME: &'static str = "MSSql";
 
@@ -49,7 +45,7 @@ impl Probe for MSSql {
             let rows = match &self.sql {
                 None => Default::default(),
                 Some(sql) => {
-                    let mut query_stream = client.simple_query(sql.query.as_str()).await?;
+                    let query_stream = client.simple_query(sql.query.as_str()).await?;
                     // we expect only simple queries, so we do not stream each row and rather collect the full set into memory
                     let rows = query_stream.into_results().await?;
                     Some(rows)
@@ -61,7 +57,7 @@ impl Probe for MSSql {
                 Some(rows) => {
                     let data: Data = rows.into_iter().flatten().enumerate().map(|(pos, row)| (pos.to_string(), format!("{:?}", row))).collect();
                     println!("{:?}", data);
-                    let mut metrics = Vec::with_capacity(1);
+                    let metrics = Vec::with_capacity(1);
                     Ok((data, metrics))
                 }
             }

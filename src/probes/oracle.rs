@@ -1,15 +1,11 @@
-use std::borrow::Cow;
+use std::time::Duration;
 
-use oracle::{Connection};
+use oracle::Connection;
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::core::{Oracle, Probe, ProbeReport, GlobalOptions, SqlTest, Config, Metrics, Data};
-use crate::core::Result;
-use std::collections::HashMap;
-use std::time::Duration;
+use crate::core::{Data, GlobalOptions, Metrics, Oracle, Probe, ProbeReport, SqlTest};
 use crate::core::error::InquestError::AssertionError;
-use std::collections::hash_map::RandomState;
-use crate::core::error::InquestError;
+use crate::core::Result;
 
 const GO_REMOVE: GlobalOptions = GlobalOptions { timeout: Duration::from_secs(30) };
 

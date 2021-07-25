@@ -1,9 +1,10 @@
-use crate::core::{Config, Http};
 use hocon::Hocon;
+use url::Url;
+
+use crate::core::{Config, Http};
 use crate::core::error::InquestError;
 use crate::core::Result;
-use crate::input::parser::{GO};
-use url::Url;
+use crate::input::parser::GO;
 
 pub(crate) fn parse_http(hocon: &Hocon) -> Result<Vec<Config>> {
     if let Hocon::Array(http_specs) = &hocon {
@@ -27,10 +28,10 @@ fn parse_get(hocon: &Hocon) -> Result<Http> {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::{Config, Http};
-    use crate::input::parser::tests::match_content;
     use std::ops::Deref;
 
+    use crate::core::{Config, Http};
+    use crate::input::parser::tests::match_content;
 
     #[test]
     fn parse_http() {

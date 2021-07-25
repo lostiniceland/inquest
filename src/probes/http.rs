@@ -2,7 +2,7 @@ use reqwest::blocking::*;
 use reqwest::StatusCode;
 use url::Url;
 
-use crate::core::{Config, GlobalOptions, Http, Probe, ProbeReport};
+use crate::core::{GlobalOptions, Http, Probe, ProbeReport};
 use crate::core::error::InquestError::{AssertionError, FailedExecutionError};
 use crate::core::Result;
 
@@ -53,7 +53,7 @@ fn validate_result(call_result: reqwest::Result<Response>, config: &Http) -> Res
                 Ok(report)
             }
         }
-        Err(s) => Err(FailedExecutionError)
+        Err(_) => Err(FailedExecutionError)
         // config,
         // error_code: s.status().map(|x|x.as_u16()).unwrap_or(500)}
     }
