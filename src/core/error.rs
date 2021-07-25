@@ -50,6 +50,9 @@ pub enum InquestError {
     OracleError(#[from] oracle::Error),
 
     #[error(transparent)]
+    MSSqlError(#[from] tiberius::error::Error),
+
+    #[error(transparent)]
     CryptoError(#[from] DecodeError),
 
     #[error("Key must consist of 10-32 characters but was {length}!")]

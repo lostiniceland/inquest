@@ -43,16 +43,15 @@ impl Probe for MSSql {
         // the `TokioAsyncWriteCompatExt` to get a stream compatible with the
         // traits from the `futures` crate.
         let report_future = async {
-            let tcp = TcpStream::connect(config.get_addr()).await.unwrap(); // improve unwrap (was ?)
-            tcp.set_nodelay(true).unwrap(); // improve unwrap (was ?)
-            let mut client = Client::connect(config, tcp.compat_write()).await.unwrap(); // improve unwrap (was ?)
-            // Client::connect(config, tcp).await.unwrap() // improve unwrap (was ?)
+            let tcp = TcpStream::connect(config.get_addr()).await?;
+            tcp.set_nodelay(true)?;
+            let mut client = Client::connect(config, tcp.compat_write()).await?;
             let rows = match &self.sql {
                 None => Default::default(),
                 Some(sql) => {
-                    let mut query_stream = client.simple_query(sql.query.as_str()).await.unwrap(); // improve unwrap (was ?)
+                    let mut query_stream = client.simple_query(sql.query.as_str()).await?;
                     // we expect only simple queries, so we do not stream each row and rather collect the full set into memory
-                    let rows = query_stream.into_results().await.unwrap();
+                    let rows = query_stream.into_results().await?;
                     Some(rows)
                 }
             };
