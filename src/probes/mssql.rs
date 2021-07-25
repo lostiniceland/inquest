@@ -1,13 +1,12 @@
 use secrecy::{ExposeSecret, SecretString};
 use tiberius::{AuthMethod, Client, Config};
 use tokio::net::TcpStream;
-// use async_std::net::TcpStream;
-// use async_std::future;
 use tokio::runtime::Runtime;
-use tokio_util::compat::TokioAsyncWriteCompatExt;
+use tokio_util::compat::{TokioAsyncWriteCompatExt};
 
 use crate::core::{Data, GlobalOptions, MSSql, Probe, ProbeReport, SqlTest};
 use crate::core::Result;
+use tiberius::error::Error;
 
 const PROBE_NAME: &'static str = "MSSql";
 
@@ -41,7 +40,25 @@ impl Probe for MSSql {
         let report_future = async {
             let tcp = TcpStream::connect(config.get_addr()).await?;
             tcp.set_nodelay(true)?;
-            let mut client = Client::connect(config, tcp.compat_write()).await?;
+            let mut client = match Client::connect(config, tcp.compat_write()).await {
+                Ok(client) => client,
+                // The server wants us to redirect to a different address
+                Err(Error::Routing { host, port }) => {
+
+                    let mut config = Config::new();
+                    config.host(&host);
+                    config.port(port);
+                    config.trust_cert();
+                    config.authentication(AuthMethod::sql_server(&self.user, &self.password.expose_secret()));
+
+                    let tcp = TcpStream::connect(config.get_addr()).await?;
+                    tcp.set_nodelay(true)?;
+
+                    // we should not have more than one redirect, so we'll short-circuit here.
+                    Client::connect(config, tcp.compat_write()).await?
+                }
+                Err(e) => Err(e)?,
+            };
             let rows = match &self.sql {
                 None => Default::default(),
                 Some(sql) => {
