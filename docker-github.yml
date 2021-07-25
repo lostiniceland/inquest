@@ -16,3 +16,9 @@ services:
     environment:
       ACCEPT_EULA: Y
       SA_PASSWORD: "changeit_C8"
+
+#  oracle:
+#    image: quillbuilduser/oracle-18-xe
+#    ports:
+#      - 1521:1521
+

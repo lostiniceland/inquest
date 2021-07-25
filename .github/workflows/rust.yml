@@ -25,16 +25,25 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build
+      - name: "Build"
         run: cargo build --verbose
 
-      - name: Run Unit-Tests
+      - name: "Run Unit-Tests"
         run: cargo test --lib --verbose
 
-      - name: Prepare Docker
+      - name: "Install Oracle Instant-Client"
+        run: |
+          curl -o /tmp/oracle-client.rpm https://download.oracle.com/otn_software/linux/instantclient/211000/oracle-instantclient-basiclite-21.1.0.0.0-1.x86_64.rpm
+          apt install alien libaio1
+          alien -i /tmp/oracle-client.rpm
+
+      - name: "Startup Databases via Docker"
         run: docker-compose -f docker-github.yml up -d
 
-      - name: Run Integration-Tests
+      - name: "Prepare Oracle-Schema For Tests"
+        run: cd tests && chmod +x oracle_init-schema.sh && ./oracle_init-schema.sh
+
+      - name: "Run Integration-Tests"
         run: cargo test --test integration --verbose
         env:
           TEST_ENV: github
