@@ -38,15 +38,10 @@ fn run_postgres_probe() {
 
 #[test]
 fn run_oracle_probe() {
-    match option_env!("TEST_ENV") {
-        Some("github") => println!("skipping Oracle test on Github-Actions!"),
-        _ => {
-            setup();
-            let result = run_from_config(Path::new("tests/integration-oracle.conf")).unwrap();
-            println!("{:#?}", result);
-            assert_eq!(1, result.0.len());
-        }
-    }
+    setup();
+    let result = run_from_config(Path::new("tests/integration-oracle.conf")).unwrap();
+    println!("{:#?}", result);
+    assert_eq!(1, result.0.len());
 }
 
 #[test]

@@ -34,16 +34,18 @@ jobs:
       - name: "Install Oracle Instant-Client"
         run: |
           curl -o /tmp/oracle-client.rpm https://download.oracle.com/otn_software/linux/instantclient/211000/oracle-instantclient-basiclite-21.1.0.0.0-1.x86_64.rpm
-          apt install alien libaio1
-          alien -i /tmp/oracle-client.rpm
+          sudo apt install -qq -o=Dpkg::Use-Pty=0 alien libaio1
+          sudo alien -i /tmp/oracle-client.rpm
 
       - name: "Startup Databases via Docker"
-        run: docker-compose -f docker-github.yml up -d
+        run: docker-compose up -d
 
       - name: "Prepare Oracle-Schema For Tests"
-        run: cd tests && chmod +x oracle_init-schema.sh && ./oracle_init-schema.sh
+        run: |
+          sudo apt install -qq -o=Dpkg::Use-Pty=0 unzip openjdk-11-jdk
+          curl -o /tmp/sqlcl.zip https://download.oracle.com/otn_software/java/sqldeveloper/sqlcl-21.1.1.113.1704.zip
+          sudo unzip /tmp/sqlcl.zip -d /opt
+          cd tests && /opt/sqlcl/bin/sql sys/Oracle18@localhost:1521/XEPDB1 as sysdba @oracle_init-schema.sql test changeit
 
       - name: "Run Integration-Tests"
         run: cargo test --test integration --verbose
-        env:
-          TEST_ENV: github

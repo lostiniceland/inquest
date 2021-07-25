@@ -17,8 +17,10 @@ services:
       ACCEPT_EULA: Y
       SA_PASSWORD: "changeit_C8"
 
-#  oracle:
-#    image: quillbuilduser/oracle-18-xe
-#    ports:
-#      - 1521:1521
+  oracle:
+    # this image is only accessible via sys as sysdba
+    # we create a user for testing in a separate step
+    image: quillbuilduser/oracle-18-xe
+    ports:
+      - 1521:1521
 
