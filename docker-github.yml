@@ -8,3 +8,11 @@ services:
       POSTGRES_USER: "admin"
       POSTGRES_PASSWORD: "changeit"
       POSTGRES_DB: "test"
+
+  mssql:
+    image: mcr.microsoft.com/mssql/server
+    ports:
+      - 1433:1433
+    environment:
+      ACCEPT_EULA: Y
+      SA_PASSWORD: "changeit_C8"

@@ -49,4 +49,12 @@ fn run_oracle_probe() {
     }
 }
 
+#[test]
+fn run_mssql_probe() {
+    setup();
+    let result = run_from_config(Path::new("tests/integration-mssql.conf")).unwrap();
+    println!("{:#?}", result);
+    assert_eq!(result.0.len(), 1);
+}
+
 

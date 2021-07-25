@@ -1,6 +1,7 @@
 mod http;
 mod oracle;
 mod postgres;
+mod mssql;
 
 use hocon::Hocon;
 use log::{error, warn};
@@ -12,6 +13,7 @@ use std::time::Duration;
 use crate::input::parser::postgres::parse_postgres;
 use crate::input::parser::oracle::parse_oracle;
 use crate::input::parser::http::parse_http;
+use crate::input::parser::mssql::parse_mssql;
 
 const GO: GlobalOptions = GlobalOptions { timeout: Duration::from_secs(30) };
 
@@ -36,8 +38,11 @@ pub fn parse(hocon: &Hocon) -> Result<Vec<ServiceSpecification>> {
                     Hocon::Array(_) => true,
                     _ => false
                 };
-
-                http_present || oracle_present || postgres_present
+                let mssql_present = match v["mssql"] {
+                    Hocon::Array(_) => true,
+                    _ => false
+                };
+                http_present || oracle_present || postgres_present || mssql_present
             })
             .filter_map(|(k, v)| parse_service(k, v).ok())
             .collect::<Vec<ServiceSpecification>>(),
@@ -55,6 +60,7 @@ fn parse_service(service: &String, hocon: &Hocon) -> Result<ServiceSpecification
                 "http" => parse_http(v),
                 "postgres" => parse_postgres(v),
                 "oracle" => parse_oracle(v),
+                "mssql" => parse_mssql(v),
                 other => {
                     warn!("Unrecognized Probe '{}' in '{}'", other, service);
                     Err(InquestError::ConfigurationError)
@@ -68,7 +74,6 @@ fn parse_service(service: &String, hocon: &Hocon) -> Result<ServiceSpecification
             .collect::<Vec<Config>>(),
         _ => Vec::with_capacity(0),
     };
-
     // FIXME
     Ok(ServiceSpecification {
         service: service.to_string(),

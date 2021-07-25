@@ -1,13 +1,13 @@
 use hocon::Hocon;
-use crate::core::{Config, Oracle};
+use crate::core::{Config, Postgres, MSSql};
 use crate::core::error::InquestError;
 use secrecy::SecretString;
 use crate::input::parser::{parse_sql, GO};
 use crate::core::Result;
 
-pub(crate) fn parse_oracle(hocon: &Hocon) -> Result<Vec<Config>> {
-    if let Hocon::Array(oracles) = &hocon {
-        Ok(oracles.into_iter().map(|x|parse(x)).flatten().collect())
+pub(crate) fn parse_mssql(hocon: &Hocon) -> Result<Vec<Config>> {
+    if let Hocon::Array(mssqls) = &hocon {
+        Ok(mssqls.into_iter().map(|x|parse(x)).flatten().collect())
     } else {
         Err(InquestError::ConfigurationError)
     }
@@ -15,7 +15,6 @@ pub(crate) fn parse_oracle(hocon: &Hocon) -> Result<Vec<Config>> {
 
 // FIXME improve error handling on missing configs
 fn parse(hocon: &Hocon) -> Result<Config> {
-    // TODO collect all errors at once if possible
     let host = hocon["host"].as_string();
     let port = hocon["port"].as_i64().map(|port| port as u16);
     let user = hocon["user"]
@@ -26,15 +25,10 @@ fn parse(hocon: &Hocon) -> Result<Config> {
             .as_string()
             .ok_or(InquestError::ConfigurationError)?,
     );
-    let sid = hocon["sid"]
-        .as_string()
-        .ok_or(InquestError::ConfigurationError)?;
     let sql = parse_sql(&hocon)?;
-
-    Ok(Oracle::new(
+    Ok(MSSql::new(
         host,
         port,
-        sid,
         user,
         password,
         sql,
@@ -45,38 +39,35 @@ fn parse(hocon: &Hocon) -> Result<Config> {
 #[cfg(test)]
 mod tests {
     use secrecy::{ExposeSecret};
-    use crate::core::{Oracle, Config};
+    use crate::core::{Postgres, Config, MSSql};
     use crate::input::parser::tests::match_content;
 
     #[test]
-    fn parse_oracle() {
+    fn parse_mssql() {
         let content = r#"
             probe-specification {
                 my-service {
-                    oracle = [{
+                    mssql = [{
                         host = "localhost"
-                        host = ${?ORACLE_HOST}
-                        port = 1521 # can be omitted when 1521
-                        sid = "XE"
-                        user = "SYSTEM"
-                        password = "hX8AgBVOd/GvecheybpEPA==" # 'changeit'
+                        host = ${?MSSQL_HOST} # can be omitted when 'localhost'
+                        port = 1433 # can be omitted when 1433
+                        user = "SA"
+                        password = "rLg3oWW5DLVUH+1rHu502g==" # 'changeit_C8'
                         sql {
-                            query = "select * from V$SESSION_CONNECT_INFO"
+                            query = "SELECT * FROM sys.databases;"
                         }
                     }]
                 }
             }"#;
         match_content(content, |config| match config {
-            Config::Oracle(Oracle { host, port, sid, user, password, sql, .. }) => {
+            Config::MSSql(MSSql { host, port, user, password, sql, .. }) => {
                 assert_eq!("localhost", host);
-                assert_eq!(1521, *port);
-                assert_eq!("XE", sid);
-                assert_eq!("SYSTEM", user);
-                assert_eq!("hX8AgBVOd/GvecheybpEPA==", password.expose_secret());
+                assert_eq!(1433, *port);
+                assert_eq!("SA", user);
+                assert_eq!("rLg3oWW5DLVUH+1rHu502g==", password.expose_secret());
                 assert_eq!(true, sql.as_ref().unwrap().query.len() > 0);
             }
-            _ => panic!("did not match Oracle probe")
+            _ => panic!("did not match MSSQL probe")
         });
     }
-
 }

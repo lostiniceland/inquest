@@ -13,6 +13,7 @@ pub(crate) fn parse_postgres(hocon: &Hocon) -> Result<Vec<Config>> {
     }
 }
 
+// FIXME improve error handling on missing configs
 fn parse(hocon: &Hocon) -> Result<Config> {
     let host = hocon["host"].as_string();
     let port = hocon["port"].as_i64().map(|port| port as u16);

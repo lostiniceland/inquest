@@ -44,6 +44,7 @@ pub(crate) enum Config {
     Http(Http),
     Postgres(Postgres),
     Oracle(Oracle),
+    MSSql(MSSql),
 }
 
 #[derive(Debug)]
@@ -85,6 +86,17 @@ pub(crate) struct Oracle {
     pub(crate) sql: Option<SqlTest>,
 }
 
+/// Configuration options for a probe targeting a MSSQL database
+#[derive(Debug)]
+pub(crate) struct MSSql {
+    pub(crate) options: &'static GlobalOptions,
+    pub(crate) host: String,
+    pub(crate) port: u16,
+    pub(crate) user: String,
+    pub(crate) password: SecretString,
+    pub(crate) sql: Option<SqlTest>,
+}
+
 impl Config {
 
     /// Some Probe configurations will have encrypted secrets when reading the configuration
@@ -94,7 +106,9 @@ impl Config {
         where
             F: Fn(SecretString) -> SecretString,
     {
-        if let Config::Postgres(Postgres { password, .. }) | Config::Oracle(Oracle { password, .. }) =
+        if let Config::Postgres(Postgres { password, .. })
+            | Config::Oracle(Oracle { password, .. })
+            | Config::MSSql(MSSql {password, ..}) =
         &mut self
         {
             let _old = std::mem::replace(password, decrypt(password.to_owned()));
@@ -114,6 +128,12 @@ impl From<Http> for Config {
 impl From<Postgres> for Config {
     fn from(config: Postgres) -> Self {
         Config::Postgres(config)
+    }
+}
+
+impl From<MSSql> for Config {
+    fn from(config: MSSql) -> Self {
+        Config::MSSql(config)
     }
 }
 
@@ -160,6 +180,7 @@ fn prepare_probes_from_spec(specs: Vec<ServiceSpecification>) -> Probes {
                     Config::Http(c) => Box::new(c) as ProbeBox,
                     Config::Postgres(c) => Box::new(c) as ProbeBox,
                     Config::Oracle(c) => Box::new(c) as ProbeBox,
+                    Config::MSSql(c) => Box::new(c) as ProbeBox
                 })
         })
         .collect()
