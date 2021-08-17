@@ -3,9 +3,9 @@ use std::time::Duration;
 use oracle::Connection;
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::core::{Data, GlobalOptions, Metrics, Oracle, Probe, ProbeReport, SqlTest};
-use crate::core::error::InquestError::AssertionError;
-use crate::core::Result;
+use crate::{Data, GlobalOptions, Metrics, Oracle, Probe, ProbeReport, SqlTest};
+use crate::error::InquestError::AssertionError;
+use crate::Result;
 
 const GO_REMOVE: GlobalOptions = GlobalOptions { timeout: Duration::from_secs(30) };
 

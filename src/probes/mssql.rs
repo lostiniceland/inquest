@@ -4,8 +4,8 @@ use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio_util::compat::{TokioAsyncWriteCompatExt};
 
-use crate::core::{Data, GlobalOptions, MSSql, Probe, ProbeReport, SqlTest};
-use crate::core::Result;
+use crate::{Data, GlobalOptions, MSSql, Probe, ProbeReport, SqlTest};
+use crate::Result;
 use tiberius::error::Error;
 
 const PROBE_NAME: &'static str = "MSSql";

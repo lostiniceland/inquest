@@ -4,7 +4,7 @@ use base64::DecodeError;
 use block_modes::BlockModeError;
 use thiserror::Error;
 
-use crate::core::ProbeReport;
+use crate::ProbeReport;
 
 #[derive(Error, Debug)]
 pub enum InquestError {

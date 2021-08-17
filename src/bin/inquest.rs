@@ -7,7 +7,7 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use clap::{App, Arg, SubCommand};
 
-use libinquest::core::{ProbeReport, run_from_config};
+use libinquest::{ProbeReport, run_from_config};
 use libinquest::crypto::encrypt;
 
 struct ReportDisplay<'a, T>(&'a T);

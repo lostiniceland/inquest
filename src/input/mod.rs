@@ -2,8 +2,8 @@ use std::path::Path;
 
 use hocon::HoconLoader;
 
-use crate::core::Result;
-use crate::core::ServiceSpecification;
+use crate::Result;
+use crate::ServiceSpecification;
 use crate::input::parser::parse;
 
 mod parser;

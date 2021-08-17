@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Once;
 
 use libinquest;
-use libinquest::core::run_from_config;
+use libinquest::run_from_config;
 
 static INIT: Once = Once::new();
 

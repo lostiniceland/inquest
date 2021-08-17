@@ -5,8 +5,8 @@ use block_modes::{BlockMode, Cbc};
 use block_modes::block_padding::Iso7816;
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::core::error::InquestError;
-use crate::core::Result;
+use crate::error::InquestError;
+use crate::Result;
 
 // taken from https://markv.nl/blog/symmetric-encryption-in-rust
 
@@ -93,7 +93,7 @@ pub fn decrypt_secret(
 
 #[cfg(test)]
 mod tests {
-    use crate::core::error::InquestError;
+    use crate::error::InquestError;
     use crate::crypto::{decrypt, encrypt};
 
     #[test]

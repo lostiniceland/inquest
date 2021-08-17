@@ -3,9 +3,9 @@ use std::time::Duration;
 use hocon::Hocon;
 use log::{warn};
 
-use crate::core::{Config, GlobalOptions, ServiceSpecification, SqlTest};
-use crate::core::error::InquestError;
-use crate::core::Result;
+use crate::{Config, GlobalOptions, ServiceSpecification, SqlTest};
+use crate::error::InquestError;
+use crate::Result;
 use crate::input::parser::http::parse_http;
 use crate::input::parser::mssql::parse_mssql;
 use crate::input::parser::oracle::parse_oracle;
@@ -98,7 +98,7 @@ fn parse_sql(hocon: &Hocon) -> Result<Option<SqlTest>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::{Config, ServiceSpecification};
+    use crate::{Config, ServiceSpecification};
     use crate::input::parser::parse;
 
     pub fn setup(content: &str) -> Vec<ServiceSpecification> {

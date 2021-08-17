@@ -2,9 +2,9 @@ use reqwest::blocking::*;
 use reqwest::StatusCode;
 use url::Url;
 
-use crate::core::{GlobalOptions, Http, Probe, ProbeReport};
-use crate::core::error::InquestError::{AssertionError, FailedExecutionError};
-use crate::core::Result;
+use crate::{GlobalOptions, Http, Probe, ProbeReport};
+use crate::error::InquestError::{AssertionError, FailedExecutionError};
+use crate::Result;
 
 const PROBE_NAME: &'static str = "HTTP";
 

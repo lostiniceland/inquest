@@ -1,9 +1,9 @@
 use hocon::Hocon;
 use url::Url;
 
-use crate::core::{Config, Http};
-use crate::core::error::InquestError;
-use crate::core::Result;
+use crate::{Config, Http};
+use crate::error::InquestError;
+use crate::Result;
 use crate::input::parser::GO;
 
 pub(crate) fn parse_http(hocon: &Hocon) -> Result<Vec<Config>> {
@@ -30,7 +30,7 @@ fn parse_get(hocon: &Hocon) -> Result<Http> {
 mod tests {
     use std::ops::Deref;
 
-    use crate::core::{Config, Http};
+    use crate::{Config, Http};
     use crate::input::parser::tests::match_content;
 
     #[test]

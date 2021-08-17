@@ -1,9 +1,9 @@
 use hocon::Hocon;
 use secrecy::SecretString;
 
-use crate::core::{Config, MSSql};
-use crate::core::error::InquestError;
-use crate::core::Result;
+use crate::{Config, MSSql};
+use crate::error::InquestError;
+use crate::Result;
 use crate::input::parser::{GO, parse_sql};
 
 pub(crate) fn parse_mssql(hocon: &Hocon) -> Result<Vec<Config>> {
@@ -41,7 +41,7 @@ fn parse(hocon: &Hocon) -> Result<Config> {
 mod tests {
     use secrecy::ExposeSecret;
 
-    use crate::core::{Config, MSSql};
+    use crate::{Config, MSSql};
     use crate::input::parser::tests::match_content;
 
     #[test]
