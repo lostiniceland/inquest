@@ -39,12 +39,7 @@ impl Probe for Oracle {
             connection_string.clone(),
         )?;
 
-        let mut report = ProbeReport {
-            probe_name: PROBE_NAME,
-            probe_identifier: connection_string,
-            data: Default::default(),
-            metrics: Default::default()
-        };
+        let mut report = ProbeReport::new(PROBE_NAME, connection_string);
 
         match foo(&self.sql, &connection, &mut report){
             Ok((data, metrics)) => {

@@ -80,14 +80,9 @@ impl Probe for MSSql {
             }
 
         };
-        let result = Runtime::new().unwrap().block_on(report_future);
+        let result = Runtime::new().unwrap().block_on(report_future);// FIXME will be done later: lib will only use async traits but no runtime (this will be handled by the cli-app)
 
-        let mut report = ProbeReport {
-            probe_name: PROBE_NAME,
-            probe_identifier: self.host.clone(),
-            data: Default::default(),
-            metrics: Default::default()
-        };
+        let mut report = ProbeReport::new(PROBE_NAME, self.host.clone());
 
         match result {
             Ok((data, metrics)) => {

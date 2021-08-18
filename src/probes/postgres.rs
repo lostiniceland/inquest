@@ -32,12 +32,7 @@ impl Probe for Postgres {
             .password(&self.password.expose_secret())
             .connect_timeout(self.options.timeout).connect(NoTls)?;
 
-        let mut report = ProbeReport {
-            probe_name: PROBE_NAME,
-            probe_identifier: self.host.clone(),
-            data: Default::default(),
-            metrics: Default::default()
-        };
+        let mut report = ProbeReport::new(PROBE_NAME, self.host.clone());
 
         match foo(&self.sql, &mut client, &mut report){
             Ok((data, metrics)) => {

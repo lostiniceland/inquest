@@ -34,6 +34,17 @@ pub struct ProbeReport {
     pub metrics: Metrics
 }
 
+impl ProbeReport {
+    pub(crate) fn new(probe_name: &'static str, probe_identifier: String) -> ProbeReport {
+        return ProbeReport {
+            probe_name,
+            probe_identifier,
+            data: Default::default(),
+            metrics: Default::default()
+        }
+    }
+}
+
 /// We define a ADT (sum type) which we can use for iterating the configured probes.
 /// The enum wraps dedicated structs which also implement the Probe trait. By doing so we have a
 /// compile-time-check that each probe has the proper configuration. If we would have used an
