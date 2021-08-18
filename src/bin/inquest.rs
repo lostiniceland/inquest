@@ -8,7 +8,8 @@ use anyhow::{Context, Result};
 use clap::{App, Arg, SubCommand};
 
 use libinquest::{ProbeReport, run_from_config};
-use libinquest::crypto::encrypt;
+use libinquest::crypto::encrypt_secret;
+use secrecy::SecretString;
 
 struct ReportDisplay<'a, T>(&'a T);
 
@@ -28,7 +29,7 @@ fn run() -> Result<(), anyhow::Error> {
         .about(crate_description!())
         .arg(
             Arg::with_name("key")
-                .help("Use a custom crypto-key. Must be exactly 32 characters long.")
+                .help("Use a custom crypto-key. Must be between 10-32 characters long.")
                 .long("key")
                 .short("k")
                 .global(true)
@@ -61,7 +62,7 @@ fn run() -> Result<(), anyhow::Error> {
 }
 
 fn command_encrypt(s: String, key: Option<&str>) -> Result<()> {
-    let encrypted = encrypt(s, key)?;
+    let encrypted = encrypt_secret(SecretString::new(s), key)?;
     println!("Encrypted Secret: {}", encrypted);
     Ok(())
 }
