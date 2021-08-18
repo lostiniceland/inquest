@@ -53,7 +53,7 @@ fn validate_result(call_result: reqwest::Result<Response>, config: &Http) -> Res
                 Ok(report)
             }
         }
-        Err(_) => Err(FailedExecutionError)
+        Err(source) => Err(FailedExecutionError{source: Box::new(source)})
         // config,
         // error_code: s.status().map(|x|x.as_u16()).unwrap_or(500)}
     }
