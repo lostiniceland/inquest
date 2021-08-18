@@ -16,6 +16,8 @@ use crate::Result;
 /// Iso7816 is the padding using if the data doesn't fit in the block size.
 type Aes256Cbc = Cbc<Aes256, Iso7816>;
 
+pub const VAULT_PREFIX: &'static str = "!vault |";
+
 struct Crypto {
     cipher: Aes256Cbc,
 }
@@ -70,12 +72,12 @@ impl Crypto {
 /// in order to have a well-formed UTF-8 String to return
 pub fn encrypt(text: String, key: Option<&str>) -> Result<String> {
     let crypto = Crypto::new(key);
-    Ok(base64::encode(crypto?.encrypt(text)))
+    Ok(format!("{}{}", VAULT_PREFIX,base64::encode(crypto?.encrypt(text))))
 }
 
 /// Decrypts the given String by first reverting the Base64 encoding to the former bytes which
 /// are then decrypted with the former AES Block-Cypher
-pub fn decrypt(encrypted: String, key: Option<&str>) -> Result<String> {
+fn decrypt(encrypted: String, key: Option<&str>) -> Result<String> {
     let crypto = Crypto::new(key);
     let text = crypto?.decrypt(base64::decode(encrypted)?);
     Ok(String::from_utf8(text?)?)
@@ -85,37 +87,50 @@ pub fn decrypt_secret(
     secret: SecretString,
     key: Option<&str>,
 ) -> Result<SecretString> {
-    Ok(SecretString::new(decrypt(
-        String::from(secret.expose_secret()),
-        key,
-    )?))
+    if !secret.expose_secret().starts_with(VAULT_PREFIX) {
+        Ok(secret)
+    }else {
+        let secret_without_prefix = &secret.expose_secret()[VAULT_PREFIX.len()..];
+        Ok(SecretString::new(decrypt(
+            String::from(secret_without_prefix),
+            key,
+        )?))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::error::InquestError;
-    use crate::crypto::{decrypt, encrypt};
+    use crate::crypto::{decrypt, encrypt, decrypt_secret};
+    use secrecy::{SecretString, ExposeSecret};
 
     #[test]
-    fn encryption() {
+    fn encryption_and_decryption() {
         let text = "hello world".to_string();
         let encrypted = encrypt(text.clone(), None).unwrap();
-        let decrypted = decrypt(encrypted, None).unwrap();
-        assert_eq!(decrypted, text)
+        let decrypted = decrypt_secret(SecretString::new(encrypted), None).unwrap();
+        assert_eq!(decrypted.expose_secret().to_string(), text)
     }
 
     #[test]
-    fn encryption_with_key() {
+    fn encryption_and_decryption_with_key() {
         let text = "hello world".to_string();
         let key = Some("RvzQW3MwrcDpPZl8rP3,=HsD1,wdgdew");
         let encrypted = encrypt(text.clone(), key).unwrap();
-        let decrypted = decrypt(encrypted, key).unwrap();
-        assert_eq!(decrypted, text)
+        let decrypted = decrypt_secret(SecretString::new(encrypted), key).unwrap();
+        assert_eq!(decrypted.expose_secret().to_string(), text)
+    }
+
+    #[test]
+    fn unecrypted_value_returned() {
+        let text = "unencrypted text".to_string();
+        let decrypted = decrypt_secret(SecretString::new(text.clone()), None).unwrap();
+        assert_eq!(decrypted.expose_secret().to_string(), text)
     }
 
     #[test]
     // #[should_panic(expected="Key must consist of 32 characters!")]
-    fn encryption_with_key_short() {
+    fn encryption_with_key_short_must_fail() {
         let key = Some("to short"); // less than 10
         let mut result = false;
         if let Err(InquestError::BadCryptoKeyError { .. }) = encrypt("hello world".to_string(), key)
