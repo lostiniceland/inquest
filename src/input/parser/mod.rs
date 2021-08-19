@@ -1,25 +1,26 @@
 use std::time::Duration;
 
 use hocon::Hocon;
-use log::{warn};
+use log::warn;
 
-use crate::{Config, GlobalOptions, ServiceSpecification, SqlTest};
 use crate::error::InquestError;
-use crate::Result;
 use crate::input::parser::http::parse_http;
 use crate::input::parser::mssql::parse_mssql;
 use crate::input::parser::oracle::parse_oracle;
 use crate::input::parser::postgres::parse_postgres;
+use crate::Result;
+use crate::{Config, GlobalOptions, ServiceSpecification, SqlTest};
 
 mod http;
+mod mssql;
 mod oracle;
 mod postgres;
-mod mssql;
 
-const GO: GlobalOptions = GlobalOptions { timeout: Duration::from_secs(30) };
+const GO: GlobalOptions = GlobalOptions {
+    timeout: Duration::from_secs(30),
+};
 
 pub fn parse(hocon: &Hocon) -> Result<Vec<ServiceSpecification>> {
-
     let root = &hocon["probe-specification"];
     // let options =
 
@@ -29,25 +30,25 @@ pub fn parse(hocon: &Hocon) -> Result<Vec<ServiceSpecification>> {
             .filter(|(_, v)| {
                 let http_present = match v["http"] {
                     Hocon::Array(_) => true,
-                    _ => false
+                    _ => false,
                 };
                 let oracle_present = match v["oracle"] {
                     Hocon::Array(_) => true,
-                    _ => false
+                    _ => false,
                 };
                 let postgres_present = match v["postgres"] {
                     Hocon::Array(_) => true,
-                    _ => false
+                    _ => false,
                 };
                 let mssql_present = match v["mssql"] {
                     Hocon::Array(_) => true,
-                    _ => false
+                    _ => false,
                 };
                 http_present || oracle_present || postgres_present || mssql_present
             })
             .filter_map(|(k, v)| parse_service(k, v).ok())
             .collect::<Vec<ServiceSpecification>>(),
-        _ => Default::default()
+        _ => Default::default(),
     };
 
     Ok(result)
@@ -82,7 +83,6 @@ fn parse_service(service: &String, hocon: &Hocon) -> Result<ServiceSpecification
     })
 }
 
-
 fn parse_sql(hocon: &Hocon) -> Result<Option<SqlTest>> {
     if let Hocon::BadValue(_) = hocon["sql"] {
         return Ok(None);
@@ -90,21 +90,20 @@ fn parse_sql(hocon: &Hocon) -> Result<Option<SqlTest>> {
 
     match hocon["sql"]["query"].as_string() {
         Some(query) => Ok(Some(SqlTest { query })),
-        None => Err(InquestError::ConfigurationError)
+        None => Err(InquestError::ConfigurationError),
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
-    use crate::{Config, ServiceSpecification};
     use crate::input::parser::parse;
+    use crate::{Config, ServiceSpecification};
 
     pub fn setup(content: &str) -> Vec<ServiceSpecification> {
         let root = hocon::HoconLoader::new()
             .no_url_include()
-            .load_str(content).unwrap()
+            .load_str(content)
+            .unwrap()
             .hocon()
             .unwrap();
 
@@ -112,7 +111,9 @@ mod tests {
     }
 
     pub(crate) fn match_content<T>(content: &str, matcher: T)
-        where T: Fn(&Config) {
+    where
+        T: Fn(&Config),
+    {
         let mut matched = false;
         let spec = setup(content);
         for service in &spec {

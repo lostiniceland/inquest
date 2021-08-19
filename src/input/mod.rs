@@ -2,12 +2,12 @@ use std::path::Path;
 
 use hocon::HoconLoader;
 
+use crate::input::parser::parse;
 use crate::Result;
 use crate::ServiceSpecification;
-use crate::input::parser::parse;
 
-mod parser;
 mod console;
+mod parser;
 
 pub fn load_hocon_config(path: &Path) -> Result<Vec<ServiceSpecification>> {
     let root = HoconLoader::new()
@@ -21,4 +21,3 @@ pub fn load_hocon_config(path: &Path) -> Result<Vec<ServiceSpecification>> {
 }
 
 // TODO read config from console
-

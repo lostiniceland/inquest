@@ -1,6 +1,7 @@
+use secrecy::{ExposeSecret, SecretString};
+
+use crate::crypto::aes::{decrypt, encrypt};
 use crate::Result;
-use crate::crypto::aes::{encrypt, decrypt};
-use secrecy::{SecretString, ExposeSecret};
 
 mod aes;
 
@@ -11,18 +12,14 @@ pub enum VaultTypes {
     Aes256,
 }
 
-
 pub fn encrypt_secret(text: SecretString, key: Option<&str>) -> Result<String> {
     Ok(format!("{}{}", VAULT_PREFIX, encrypt(text, key)?))
 }
 
-pub fn decrypt_secret(
-    secret: SecretString,
-    key: Option<&str>,
-) -> Result<SecretString> {
+pub fn decrypt_secret(secret: SecretString, key: Option<&str>) -> Result<SecretString> {
     if !secret.expose_secret().starts_with(VAULT_PREFIX) {
         Ok(secret)
-    }else {
+    } else {
         let secret_without_prefix = &secret.expose_secret()[VAULT_PREFIX.len()..];
         Ok(SecretString::new(decrypt(
             String::from(secret_without_prefix),
@@ -33,8 +30,9 @@ pub fn decrypt_secret(
 
 #[cfg(test)]
 mod tests {
-    use secrecy::{SecretString, ExposeSecret};
-    use crate::crypto::{encrypt_secret, decrypt_secret};
+    use secrecy::{ExposeSecret, SecretString};
+
+    use crate::crypto::{decrypt_secret, encrypt_secret};
 
     #[test]
     fn aes_encryption_and_decryption() {

@@ -1,14 +1,14 @@
 use hocon::Hocon;
 use secrecy::SecretString;
 
-use crate::{Config, Oracle};
 use crate::error::InquestError;
+use crate::input::parser::{parse_sql, GO};
 use crate::Result;
-use crate::input::parser::{GO, parse_sql};
+use crate::{Config, Oracle};
 
 pub(crate) fn parse_oracle(hocon: &Hocon) -> Result<Vec<Config>> {
     if let Hocon::Array(oracles) = &hocon {
-        Ok(oracles.into_iter().map(|x|parse(x)).flatten().collect())
+        Ok(oracles.into_iter().map(|x| parse(x)).flatten().collect())
     } else {
         Err(InquestError::ConfigurationError)
     }
@@ -32,23 +32,15 @@ fn parse(hocon: &Hocon) -> Result<Config> {
         .ok_or(InquestError::ConfigurationError)?;
     let sql = parse_sql(&hocon)?;
 
-    Ok(Oracle::new(
-        host,
-        port,
-        sid,
-        user,
-        password,
-        sql,
-        &GO,
-    ).into())
+    Ok(Oracle::new(host, port, sid, user, password, sql, &GO).into())
 }
 
 #[cfg(test)]
 mod tests {
     use secrecy::ExposeSecret;
 
-    use crate::{Config, Oracle};
     use crate::input::parser::tests::match_content;
+    use crate::{Config, Oracle};
 
     #[test]
     fn parse_oracle() {
@@ -69,7 +61,15 @@ mod tests {
                 }
             }"#;
         match_content(content, |config| match config {
-            Config::Oracle(Oracle { host, port, sid, user, password, sql, .. }) => {
+            Config::Oracle(Oracle {
+                host,
+                port,
+                sid,
+                user,
+                password,
+                sql,
+                ..
+            }) => {
                 assert_eq!("localhost", host);
                 assert_eq!(1521, *port);
                 assert_eq!("XE", sid);
@@ -77,8 +77,7 @@ mod tests {
                 assert_eq!("hX8AgBVOd/GvecheybpEPA==", password.expose_secret());
                 assert_eq!(true, sql.as_ref().unwrap().query.len() > 0);
             }
-            _ => panic!("did not match Oracle probe")
+            _ => panic!("did not match Oracle probe"),
         });
     }
-
 }

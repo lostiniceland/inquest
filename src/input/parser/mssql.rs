@@ -1,14 +1,14 @@
 use hocon::Hocon;
 use secrecy::SecretString;
 
-use crate::{Config, MSSql};
 use crate::error::InquestError;
+use crate::input::parser::{parse_sql, GO};
 use crate::Result;
-use crate::input::parser::{GO, parse_sql};
+use crate::{Config, MSSql};
 
 pub(crate) fn parse_mssql(hocon: &Hocon) -> Result<Vec<Config>> {
     if let Hocon::Array(mssqls) = &hocon {
-        Ok(mssqls.into_iter().map(|x|parse(x)).flatten().collect())
+        Ok(mssqls.into_iter().map(|x| parse(x)).flatten().collect())
     } else {
         Err(InquestError::ConfigurationError)
     }
@@ -27,22 +27,15 @@ fn parse(hocon: &Hocon) -> Result<Config> {
             .ok_or(InquestError::ConfigurationError)?,
     );
     let sql = parse_sql(&hocon)?;
-    Ok(MSSql::new(
-        host,
-        port,
-        user,
-        password,
-        sql,
-        &GO,
-    ).into())
+    Ok(MSSql::new(host, port, user, password, sql, &GO).into())
 }
 
 #[cfg(test)]
 mod tests {
     use secrecy::ExposeSecret;
 
-    use crate::{Config, MSSql};
     use crate::input::parser::tests::match_content;
+    use crate::{Config, MSSql};
 
     #[test]
     fn parse_mssql() {
@@ -62,14 +55,21 @@ mod tests {
                 }
             }"#;
         match_content(content, |config| match config {
-            Config::MSSql(MSSql { host, port, user, password, sql, .. }) => {
+            Config::MSSql(MSSql {
+                host,
+                port,
+                user,
+                password,
+                sql,
+                ..
+            }) => {
                 assert_eq!("localhost", host);
                 assert_eq!(1433, *port);
                 assert_eq!("SA", user);
                 assert_eq!("rLg3oWW5DLVUH+1rHu502g==", password.expose_secret());
                 assert_eq!(true, sql.as_ref().unwrap().query.len() > 0);
             }
-            _ => panic!("did not match MSSQL probe")
+            _ => panic!("did not match MSSQL probe"),
         });
     }
 }

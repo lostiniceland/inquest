@@ -2,14 +2,19 @@ use reqwest::blocking::*;
 use reqwest::StatusCode;
 use url::Url;
 
-use crate::{GlobalOptions, Http, Probe, ProbeReport};
 use crate::error::InquestError::{AssertionError, FailedExecutionError};
 use crate::Result;
+use crate::{GlobalOptions, Http, Probe, ProbeReport};
 
 const PROBE_NAME: &'static str = "HTTP";
 
 impl Http {
-    pub fn new(url: Url, status: Option<u16>, name: Option<String>, options: &'static GlobalOptions) -> Http {
+    pub fn new(
+        url: Url,
+        status: Option<u16>,
+        name: Option<String>,
+        options: &'static GlobalOptions,
+    ) -> Http {
         Http {
             options,
             url,
@@ -19,12 +24,9 @@ impl Http {
     }
 }
 
-
 impl Probe for Http {
     fn execute<'a>(&self) -> Result<ProbeReport> {
-        let client = Client::builder()
-            .timeout(self.options.timeout)
-            .build()?;
+        let client = Client::builder().timeout(self.options.timeout).build()?;
         validate_result(client.get(self.url.as_str()).send(), self)
     }
 }
@@ -40,9 +42,10 @@ fn validate_result(call_result: reqwest::Result<Response>, config: &Http) -> Res
             };
 
             response.headers().iter().for_each(|header| {
-                report.data.push(
-                    (header.0.to_string(),
-                    String::from_utf8(header.1.as_ref().to_vec()).unwrap()));
+                report.data.push((
+                    header.0.to_string(),
+                    String::from_utf8(header.1.as_ref().to_vec()).unwrap(),
+                ));
             });
 
             report.data.sort();
@@ -53,13 +56,9 @@ fn validate_result(call_result: reqwest::Result<Response>, config: &Http) -> Res
                 Ok(report)
             }
         }
-        Err(source) => Err(FailedExecutionError{source: Box::new(source)})
-        // config,
-        // error_code: s.status().map(|x|x.as_u16()).unwrap_or(500)}
+        Err(source) => Err(FailedExecutionError {
+            source: Box::new(source),
+        }), // config,
+            // error_code: s.status().map(|x|x.as_u16()).unwrap_or(500)}
     }
 }
-
-
-
-
-

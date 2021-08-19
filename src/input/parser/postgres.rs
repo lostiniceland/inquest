@@ -1,14 +1,14 @@
 use hocon::Hocon;
 use secrecy::SecretString;
 
-use crate::{Config, Postgres};
 use crate::error::InquestError;
+use crate::input::parser::{parse_sql, GO};
 use crate::Result;
-use crate::input::parser::{GO, parse_sql};
+use crate::{Config, Postgres};
 
 pub(crate) fn parse_postgres(hocon: &Hocon) -> Result<Vec<Config>> {
     if let Hocon::Array(oracles) = &hocon {
-        Ok(oracles.into_iter().map(|x|parse(x)).flatten().collect())
+        Ok(oracles.into_iter().map(|x| parse(x)).flatten().collect())
     } else {
         Err(InquestError::ConfigurationError)
     }
@@ -28,23 +28,15 @@ fn parse(hocon: &Hocon) -> Result<Config> {
             .ok_or(InquestError::ConfigurationError)?,
     );
     let sql = parse_sql(&hocon)?;
-    Ok(Postgres::new(
-        host,
-        port,
-        database,
-        user,
-        password,
-        sql,
-        &GO,
-    ).into())
+    Ok(Postgres::new(host, port, database, user, password, sql, &GO).into())
 }
 
 #[cfg(test)]
 mod tests {
     use secrecy::ExposeSecret;
 
-    use crate::{Config, Postgres};
     use crate::input::parser::tests::match_content;
+    use crate::{Config, Postgres};
 
     #[test]
     fn parse_postgres() {
@@ -65,7 +57,15 @@ mod tests {
                 }
             }"#;
         match_content(content, |config| match config {
-            Config::Postgres(Postgres { host, port, database, user, password, sql, .. }) => {
+            Config::Postgres(Postgres {
+                host,
+                port,
+                database,
+                user,
+                password,
+                sql,
+                ..
+            }) => {
                 assert_eq!("localhost", host);
                 assert_eq!(5432, *port);
                 assert_eq!("test", database);
@@ -73,9 +73,7 @@ mod tests {
                 assert_eq!("hX8AgBVOd/GvecheybpEPA==", password.expose_secret());
                 assert_eq!(true, sql.as_ref().unwrap().query.len() > 0);
             }
-            _ => panic!("did not match Postgres probe")
+            _ => panic!("did not match Postgres probe"),
         });
     }
-
-
 }

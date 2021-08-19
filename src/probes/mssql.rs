@@ -1,24 +1,31 @@
 use secrecy::{ExposeSecret, SecretString};
+use tiberius::error::Error;
 use tiberius::{AuthMethod, Client, Config};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
-use tokio_util::compat::{TokioAsyncWriteCompatExt};
+use tokio_util::compat::TokioAsyncWriteCompatExt;
 
-use crate::{Data, GlobalOptions, MSSql, Probe, ProbeReport, SqlTest};
 use crate::Result;
-use tiberius::error::Error;
+use crate::{Data, GlobalOptions, MSSql, Probe, ProbeReport, SqlTest};
 
 const PROBE_NAME: &'static str = "MSSql";
 
 impl MSSql {
-    pub fn new(host: Option<String>, port: Option<u16>, user: String, password: SecretString, sql: Option<SqlTest>, options: &'static GlobalOptions) -> MSSql {
+    pub fn new(
+        host: Option<String>,
+        port: Option<u16>,
+        user: String,
+        password: SecretString,
+        sql: Option<SqlTest>,
+        options: &'static GlobalOptions,
+    ) -> MSSql {
         MSSql {
             options,
             host: host.unwrap_or("localhost".to_string()),
             port: port.unwrap_or(5432),
             user,
             password,
-            sql
+            sql,
         }
     }
 }
@@ -26,13 +33,15 @@ impl MSSql {
 /// Implements a MSSql probe based on the MSSql crate.
 impl Probe for MSSql {
     fn execute(&self) -> Result<ProbeReport> {
-
         let mut config = Config::new();
 
         config.host(&self.host);
         config.port(self.port);
         config.trust_cert();
-        config.authentication(AuthMethod::sql_server(&self.user, &self.password.expose_secret()));
+        config.authentication(AuthMethod::sql_server(
+            &self.user,
+            &self.password.expose_secret(),
+        ));
 
         // To be able to use Tokio's tcp, we're using the `compat_write` from
         // the `TokioAsyncWriteCompatExt` to get a stream compatible with the
@@ -44,12 +53,14 @@ impl Probe for MSSql {
                 Ok(client) => client,
                 // The server wants us to redirect to a different address
                 Err(Error::Routing { host, port }) => {
-
                     let mut config = Config::new();
                     config.host(&host);
                     config.port(port);
                     config.trust_cert();
-                    config.authentication(AuthMethod::sql_server(&self.user, &self.password.expose_secret()));
+                    config.authentication(AuthMethod::sql_server(
+                        &self.user,
+                        &self.password.expose_secret(),
+                    ));
 
                     let tcp = TcpStream::connect(config.get_addr()).await?;
                     tcp.set_nodelay(true)?;
@@ -72,15 +83,19 @@ impl Probe for MSSql {
             match rows {
                 None => Ok((Default::default(), Default::default())),
                 Some(rows) => {
-                    let data: Data = rows.into_iter().flatten().enumerate().map(|(pos, row)| (pos.to_string(), format!("{:?}", row))).collect();
+                    let data: Data = rows
+                        .into_iter()
+                        .flatten()
+                        .enumerate()
+                        .map(|(pos, row)| (pos.to_string(), format!("{:?}", row)))
+                        .collect();
                     println!("{:?}", data);
                     let metrics = Vec::with_capacity(1);
                     Ok((data, metrics))
                 }
             }
-
         };
-        let result = Runtime::new().unwrap().block_on(report_future);// FIXME will be done later: lib will only use async traits but no runtime (this will be handled by the cli-app)
+        let result = Runtime::new().unwrap().block_on(report_future); // FIXME will be done later: lib will only use async traits but no runtime (this will be handled by the cli-app)
 
         let mut report = ProbeReport::new(PROBE_NAME, self.host.clone());
 
@@ -90,7 +105,7 @@ impl Probe for MSSql {
                 report.metrics.extend(metrics);
                 Ok(report)
             }
-            Err(e) => Err(e)
+            Err(e) => Err(e),
         }
     }
 }

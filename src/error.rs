@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::string::FromUtf8Error;
 
 use base64::DecodeError;
@@ -5,11 +6,9 @@ use block_modes::BlockModeError;
 use thiserror::Error;
 
 use crate::ProbeReport;
-use std::error::Error;
 
 #[derive(Error, Debug)]
 pub enum InquestError {
-
     /// Represents an empty source. For example, an empty text file being given as input.
     #[error("Source contains no data")]
     EmptySource,
@@ -55,21 +54,26 @@ pub enum InquestError {
     ReqwestError(#[from] reqwest::Error),
 }
 
-
 impl From<tokio_postgres::Error> for InquestError {
     fn from(source: tokio_postgres::Error) -> Self {
-        return InquestError::FailedExecutionError { source: Box::new(source) }
+        return InquestError::FailedExecutionError {
+            source: Box::new(source),
+        };
     }
 }
 
 impl From<oracle::Error> for InquestError {
     fn from(source: oracle::Error) -> Self {
-        return InquestError::FailedExecutionError { source: Box::new(source) }
+        return InquestError::FailedExecutionError {
+            source: Box::new(source),
+        };
     }
 }
 
 impl From<tiberius::error::Error> for InquestError {
     fn from(source: tiberius::error::Error) -> Self {
-        return InquestError::FailedExecutionError { source: Box::new(source) }
+        return InquestError::FailedExecutionError {
+            source: Box::new(source),
+        };
     }
 }

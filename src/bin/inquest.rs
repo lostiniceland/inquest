@@ -6,10 +6,10 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use clap::{App, Arg, SubCommand};
-
-use libinquest::{ProbeReport, run_from_config};
-use libinquest::crypto::encrypt_secret;
 use secrecy::SecretString;
+
+use libinquest::crypto::encrypt_secret;
+use libinquest::{run_from_config, ProbeReport};
 
 struct ReportDisplay<'a, T>(&'a T);
 
@@ -46,7 +46,8 @@ fn run() -> Result<(), anyhow::Error> {
     let key = matches.value_of("key");
 
     let mut x = std::env::current_dir()?;
-    let config = matches.value_of("config")
+    let config = matches
+        .value_of("config")
         .map(|path| std::path::Path::new(path))
         .unwrap_or({
             x.push("default.conf");
@@ -56,8 +57,11 @@ fn run() -> Result<(), anyhow::Error> {
     if let ("encrypt", Some(arg)) = matches.subcommand() {
         command_encrypt(arg.value_of("password").unwrap().to_string(), key)
             .context("Unable to encrypt secret")
-    }else{
-        command_execute(config).context(format!("Unable to run with configuration '{}'", config.display()))
+    } else {
+        command_execute(config).context(format!(
+            "Unable to run with configuration '{}'",
+            config.display()
+        ))
     }
 }
 
@@ -69,9 +73,10 @@ fn command_encrypt(s: String, key: Option<&str>) -> Result<()> {
 
 fn command_execute(config: &Path) -> Result<()> {
     // File::open(config)?; // until https://github.com/mockersf/hocon.rs/issues/47 fixed
-    match run_from_config(config){
+    match run_from_config(config) {
         Ok((reports, failures)) => {
-            let reports = reports.iter()
+            let reports = reports
+                .iter()
                 .map(|r| ReportDisplay(r))
                 .collect::<Vec<ReportDisplay<ProbeReport>>>();
             let mut terminal = term::stdout().unwrap(); // FIXME only works with -it in Docker. Do a proper match
@@ -84,13 +89,17 @@ fn command_execute(config: &Path) -> Result<()> {
             terminal.reset()?;
             Ok(())
         }
-        Err(e) => Err(e.into())
+        Err(e) => Err(e.into()),
     }
 }
 
 impl<'a> Display for ReportDisplay<'a, ProbeReport> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Probe {} for '{}'", self.0.probe_name, self.0.probe_identifier)?;
+        writeln!(
+            f,
+            "Probe {} for '{}'",
+            self.0.probe_name, self.0.probe_identifier
+        )?;
         writeln!(f, "Acquired Data")?;
         if !self.0.data.is_empty() {
             for data in &self.0.data {

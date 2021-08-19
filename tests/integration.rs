@@ -6,13 +6,11 @@ use libinquest::run_from_config;
 
 static INIT: Once = Once::new();
 
-
 fn setup() {
     INIT.call_once(|| {
         stderrlog::new().verbosity(2).quiet(false).init().unwrap();
     });
 }
-
 
 #[test]
 fn run_http_probe() {
@@ -25,7 +23,13 @@ fn run_http_probe() {
 #[test]
 fn run_http_probe_assertion_error() {
     setup();
-    assert_eq!(run_from_config(Path::new("tests/integration-http-fail.conf")).unwrap().1.len(), 1);
+    assert_eq!(
+        run_from_config(Path::new("tests/integration-http-fail.conf"))
+            .unwrap()
+            .1
+            .len(),
+        1
+    );
 }
 
 #[test]
@@ -51,5 +55,3 @@ fn run_mssql_probe() {
     println!("{:#?}", result);
     assert_eq!(result.0.len(), 1);
 }
-
-

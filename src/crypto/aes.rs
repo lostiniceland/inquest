@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
 use aes::Aes256;
-use block_modes::{BlockMode, Cbc};
 use block_modes::block_padding::Iso7816;
+use block_modes::{BlockMode, Cbc};
 use secrecy::{ExposeSecret, SecretString};
 
 use crate::error::InquestError;
@@ -68,14 +68,16 @@ impl AesCrypto {
 
 /// Encrypts the given String with an AES Block-Cypher and Base64 encodes the resulting bytes
 /// in order to have a well-formed UTF-8 String to return
-pub fn encrypt(text: SecretString, key: Option<&str>) -> Result<String> { // FIXME key should be SecretString as well
+// FIXME key should be SecretString as well
+pub fn encrypt(text: SecretString, key: Option<&str>) -> Result<String> {
     let crypto = AesCrypto::new(key);
     Ok(base64::encode(crypto?.encrypt(text)))
 }
 
 /// Decrypts the given String by first reverting the Base64 encoding to the former bytes which
 /// are then decrypted with the former AES Block-Cypher
-pub fn decrypt(encrypted: String, key: Option<&str>) -> Result<String> { // FIXME key should be SecretString as well
+// FIXME key should be SecretString as well
+pub fn decrypt(encrypted: String, key: Option<&str>) -> Result<String> {
     let crypto = AesCrypto::new(key);
     let text = crypto?.decrypt(base64::decode(encrypted)?);
     Ok(String::from_utf8(text?)?)
@@ -83,16 +85,18 @@ pub fn decrypt(encrypted: String, key: Option<&str>) -> Result<String> { // FIXM
 
 #[cfg(test)]
 mod tests {
-    use secrecy::{SecretString};
-    use crate::error::InquestError;
+    use secrecy::SecretString;
+
     use crate::crypto::aes::encrypt;
+    use crate::error::InquestError;
 
     #[test]
     // #[should_panic(expected="Key must consist of 32 characters!")]
     fn fail_on_key_to_short() {
         let key = Some("to short"); // less than 10
         let mut result = false;
-        if let Err(InquestError::BadCryptoKeyError { .. }) = encrypt(SecretString::new("hello world".to_string()), key)
+        if let Err(InquestError::BadCryptoKeyError { .. }) =
+            encrypt(SecretString::new("hello world".to_string()), key)
         {
             result = true;
         };
@@ -105,8 +109,10 @@ mod tests {
     fn fail_on_key_to_long() {
         let key = format!("{:0>33}", "key"); // key will be to long by left-padding it to 33 characters
         let mut result = false;
-        if let Err(InquestError::BadCryptoKeyError { .. }) = encrypt(SecretString::new("hello world".to_string()), Some(key.as_str()))
-        {
+        if let Err(InquestError::BadCryptoKeyError { .. }) = encrypt(
+            SecretString::new("hello world".to_string()),
+            Some(key.as_str()),
+        ) {
             result = true;
         };
         assert_eq!(true, result, "Expected an InquestError::BadCryptoKeyError")

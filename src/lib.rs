@@ -1,16 +1,17 @@
-use crate::error::InquestError;
 use std::path::Path;
 use std::result;
 use std::time::Duration;
-use url::Url;
+
 use secrecy::SecretString;
+use url::Url;
+
 use crate::crypto::decrypt_secret;
+use crate::error::InquestError;
 
-mod input;
 pub mod crypto;
-mod probes;
 mod error;
-
+mod input;
+mod probes;
 
 /// A 'Probe' is implementing some for of testing remote functionality based on a given
 /// configuration.
@@ -31,7 +32,7 @@ pub struct ProbeReport {
     pub probe_name: &'static str,
     pub probe_identifier: String,
     pub data: Data,
-    pub metrics: Metrics
+    pub metrics: Metrics,
 }
 
 impl ProbeReport {
@@ -40,8 +41,8 @@ impl ProbeReport {
             probe_name,
             probe_identifier,
             data: Default::default(),
-            metrics: Default::default()
-        }
+            metrics: Default::default(),
+        };
     }
 }
 
@@ -60,7 +61,7 @@ pub(crate) enum Config {
 
 #[derive(Debug)]
 pub(crate) struct GlobalOptions {
-    pub(crate) timeout: Duration
+    pub(crate) timeout: Duration,
 }
 
 /// Configuration options for a HTTP probe
@@ -69,9 +70,8 @@ pub(crate) struct Http {
     pub(crate) options: &'static GlobalOptions,
     pub(crate) url: Url,
     pub(crate) status: u16,
-    pub(crate) name: Option<String>
+    pub(crate) name: Option<String>,
 }
-
 
 /// Configuration options for a probe targeting a Postgres database
 #[derive(Debug)]
@@ -109,18 +109,16 @@ pub(crate) struct MSSql {
 }
 
 impl Config {
-
     /// Some Probe configurations will have encrypted secrets when reading the configuration
     /// from an HOCON file. This functions will extract the relevant fields and apply the given
     /// decryption-closure for each, replacing the value in-memory.
     pub(crate) fn decrypt<F>(mut self, decrypt: F) -> Config
-        where
-            F: Fn(SecretString) -> SecretString,
+    where
+        F: Fn(SecretString) -> SecretString,
     {
         if let Config::Postgres(Postgres { password, .. })
         | Config::Oracle(Oracle { password, .. })
-        | Config::MSSql(MSSql {password, ..}) =
-        &mut self
+        | Config::MSSql(MSSql { password, .. }) = &mut self
         {
             let _old = std::mem::replace(password, decrypt(password.to_owned()));
         }
@@ -129,11 +127,15 @@ impl Config {
 }
 
 impl From<Oracle> for Config {
-    fn from(config: Oracle) -> Self { Config::Oracle(config) }
+    fn from(config: Oracle) -> Self {
+        Config::Oracle(config)
+    }
 }
 
 impl From<Http> for Config {
-    fn from(config: Http) -> Self { Config::Http(config) }
+    fn from(config: Http) -> Self {
+        Config::Http(config)
+    }
 }
 
 impl From<Postgres> for Config {
@@ -148,17 +150,13 @@ impl From<MSSql> for Config {
     }
 }
 
-
 #[derive(Debug)]
 pub struct SqlTest {
     pub(crate) query: String,
 }
 
 #[derive(Debug)]
-pub struct SqlTestData {
-
-}
-
+pub struct SqlTestData {}
 
 #[derive(Debug)]
 pub struct ServiceSpecification {
@@ -166,17 +164,16 @@ pub struct ServiceSpecification {
     pub(crate) probe_configs: Vec<Config>,
 }
 
-
 fn execute_probes<'a>(probes: Probes) -> Result<ResultTuple> {
     let mut reports = Vec::with_capacity(probes.len());
     let mut failures = Vec::with_capacity(probes.len());
     for probe in probes {
         match probe.execute() {
             Ok(report) => reports.push(report),
-            Err(failure) => failures.push(failure)
+            Err(failure) => failures.push(failure),
         }
     }
-    Ok((reports,failures))
+    Ok((reports, failures))
 }
 
 fn prepare_probes_from_spec(specs: Vec<ServiceSpecification>) -> Probes {
@@ -191,7 +188,7 @@ fn prepare_probes_from_spec(specs: Vec<ServiceSpecification>) -> Probes {
                     Config::Http(c) => Box::new(c) as ProbeBox,
                     Config::Postgres(c) => Box::new(c) as ProbeBox,
                     Config::Oracle(c) => Box::new(c) as ProbeBox,
-                    Config::MSSql(c) => Box::new(c) as ProbeBox
+                    Config::MSSql(c) => Box::new(c) as ProbeBox,
                 })
         })
         .collect()
@@ -204,4 +201,3 @@ pub fn run_from_config(path: &Path) -> Result<ResultTuple> {
     let probes = prepare_probes_from_spec(spec);
     execute_probes(probes)
 }
-
