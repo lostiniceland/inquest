@@ -23,17 +23,19 @@ struct AesCrypto {
 impl AesCrypto {
     /// Initializes the AesCrypto struct with a ready-to-use cipher.
     /// The encryption key is either passed in or left empty in which case a default key is used.
-    fn new(key: Option<&str>) -> Result<AesCrypto> {
+    fn new(key: Option<SecretString>) -> Result<AesCrypto> {
         // Key must be 32 bytes for Aes256. It should probably be the hashed
         // version of the input key, so is not limited to printable ascii.
         let key = match key {
             None => SecretString::from_str("RvzQW3Mwrc!_y5-DpPZl8rP3,=HsD1,!").unwrap(),
             Some(key) => {
-                if key.len() < 10 || key.len() > 32 {
-                    return Err(InquestError::BadCryptoKeyError { length: key.len() });
+                if key.expose_secret().len() < 10 || key.expose_secret().len() > 32 {
+                    return Err(InquestError::BadCryptoKeyError {
+                        length: key.expose_secret().len(),
+                    });
                 }
                 // lef-pad the key so it is 32 characters long
-                SecretString::from_str(format!("{:0>32}", key).as_str()).unwrap()
+                SecretString::new(format!("{:0>32}", key.expose_secret()))
             }
         };
 
@@ -69,7 +71,7 @@ impl AesCrypto {
 /// Encrypts the given String with an AES Block-Cypher and Base64 encodes the resulting bytes
 /// in order to have a well-formed UTF-8 String to return
 // FIXME key should be SecretString as well
-pub fn encrypt(text: SecretString, key: Option<&str>) -> Result<String> {
+pub fn encrypt(text: SecretString, key: Option<SecretString>) -> Result<String> {
     let crypto = AesCrypto::new(key);
     Ok(base64::encode(crypto?.encrypt(text)))
 }
@@ -77,7 +79,7 @@ pub fn encrypt(text: SecretString, key: Option<&str>) -> Result<String> {
 /// Decrypts the given String by first reverting the Base64 encoding to the former bytes which
 /// are then decrypted with the former AES Block-Cypher
 // FIXME key should be SecretString as well
-pub fn decrypt(encrypted: String, key: Option<&str>) -> Result<String> {
+pub fn decrypt(encrypted: String, key: Option<SecretString>) -> Result<String> {
     let crypto = AesCrypto::new(key);
     let text = crypto?.decrypt(base64::decode(encrypted)?);
     Ok(String::from_utf8(text?)?)
@@ -93,7 +95,7 @@ mod tests {
     #[test]
     // #[should_panic(expected="Key must consist of 32 characters!")]
     fn fail_on_key_to_short() {
-        let key = Some("to short"); // less than 10
+        let key = Some(SecretString::new("to short".to_string())); // less than 10
         let mut result = false;
         if let Err(InquestError::BadCryptoKeyError { .. }) =
             encrypt(SecretString::new("hello world".to_string()), key)
@@ -107,12 +109,11 @@ mod tests {
     #[test]
     // #[should_panic(expected="Key must consist of 32 characters!")]
     fn fail_on_key_to_long() {
-        let key = format!("{:0>33}", "key"); // key will be to long by left-padding it to 33 characters
+        let key = SecretString::new(format!("{:0>33}", "key")); // key will be to long by left-padding it to 33 characters
         let mut result = false;
-        if let Err(InquestError::BadCryptoKeyError { .. }) = encrypt(
-            SecretString::new("hello world".to_string()),
-            Some(key.as_str()),
-        ) {
+        if let Err(InquestError::BadCryptoKeyError { .. }) =
+            encrypt(SecretString::new("hello world".to_string()), Some(key))
+        {
             result = true;
         };
         assert_eq!(true, result, "Expected an InquestError::BadCryptoKeyError")

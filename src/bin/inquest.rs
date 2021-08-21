@@ -55,8 +55,11 @@ fn run() -> Result<(), anyhow::Error> {
         });
 
     if let ("encrypt", Some(arg)) = matches.subcommand() {
-        command_encrypt(arg.value_of("password").unwrap().to_string(), key)
-            .context("Unable to encrypt secret")
+        command_encrypt(
+            arg.value_of("password").unwrap().to_string(),
+            key.map(|k| SecretString::new(k.to_string())),
+        )
+        .context("Unable to encrypt secret")
     } else {
         command_execute(config).context(format!(
             "Unable to run with configuration '{}'",
@@ -65,7 +68,7 @@ fn run() -> Result<(), anyhow::Error> {
     }
 }
 
-fn command_encrypt(s: String, key: Option<&str>) -> Result<()> {
+fn command_encrypt(s: String, key: Option<SecretString>) -> Result<()> {
     let encrypted = encrypt_secret(SecretString::new(s), key)?;
     println!("Encrypted Secret: {}", encrypted);
     Ok(())

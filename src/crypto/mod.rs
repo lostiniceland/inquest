@@ -12,11 +12,11 @@ pub enum VaultTypes {
     Aes256,
 }
 
-pub fn encrypt_secret(text: SecretString, key: Option<&str>) -> Result<String> {
+pub fn encrypt_secret(text: SecretString, key: Option<SecretString>) -> Result<String> {
     Ok(format!("{}{}", VAULT_PREFIX, encrypt(text, key)?))
 }
 
-pub fn decrypt_secret(secret: SecretString, key: Option<&str>) -> Result<SecretString> {
+pub fn decrypt_secret(secret: SecretString, key: Option<SecretString>) -> Result<SecretString> {
     if !secret.expose_secret().starts_with(VAULT_PREFIX) {
         Ok(secret)
     } else {
@@ -45,9 +45,11 @@ mod tests {
     #[test]
     fn aes_encryption_and_decryption_with_key() {
         let text = "hello world".to_string();
-        let key = Some("RvzQW3MwrcDpPZl8rP3,=HsD1,wdgdew");
-        let encrypted = encrypt_secret(SecretString::new(text.clone()), key).unwrap();
-        let decrypted = decrypt_secret(SecretString::new(encrypted), key).unwrap();
+        let key = Some(SecretString::new(
+            "RvzQW3MwrcDpPZl8rP3,=HsD1,wdgdew".to_string(),
+        ));
+        let encrypted = encrypt_secret(SecretString::new(text.clone()), key.clone()).unwrap();
+        let decrypted = decrypt_secret(SecretString::new(encrypted), key.clone()).unwrap();
         assert_eq!(decrypted.expose_secret().to_string(), text)
     }
 
