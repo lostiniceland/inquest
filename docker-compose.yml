@@ -3,7 +3,7 @@ services:
   postgres:
     image: postgres
     ports:
-      - 5432:5432
+      - "5432:5432"
     environment:
       POSTGRES_USER: "admin"
       POSTGRES_PASSWORD: "changeit"
@@ -12,7 +12,7 @@ services:
   mssql:
     image: mcr.microsoft.com/mssql/server
     ports:
-      - 1433:1433
+      - "1433:1433"
     environment:
       ACCEPT_EULA: Y
       SA_PASSWORD: "changeit_C8"
@@ -22,5 +22,5 @@ services:
     # we create a user for testing in a separate step
     image: quillbuilduser/oracle-18-xe
     ports:
-      - 1521:1521
+      - "1521:1521"
 
