@@ -81,7 +81,7 @@ impl Probe for MSSql {
             };
 
             match rows {
-                None => Ok((Default::default(), Default::default())),
+                None => Ok(Default::default()),
                 Some(rows) => {
                     let data: Data = rows
                         .into_iter()
@@ -90,8 +90,7 @@ impl Probe for MSSql {
                         .map(|(pos, row)| (pos.to_string(), format!("{:?}", row)))
                         .collect();
                     println!("{:?}", data);
-                    let metrics = Vec::with_capacity(1);
-                    Ok((data, metrics))
+                    Ok(data)
                 }
             }
         };
@@ -100,9 +99,8 @@ impl Probe for MSSql {
         let mut report = ProbeReport::new(PROBE_NAME, self.host.clone());
 
         match result {
-            Ok((data, metrics)) => {
+            Ok(data) => {
                 report.data.extend(data);
-                report.metrics.extend(metrics);
                 Ok(report)
             }
             Err(e) => Err(e),

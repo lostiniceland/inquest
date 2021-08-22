@@ -3,7 +3,7 @@ use secrecy::{ExposeSecret, SecretString};
 
 use crate::error::InquestError::AssertionError;
 use crate::Result;
-use crate::{Data, GlobalOptions, Metrics, Postgres, Probe, ProbeReport, SqlTest};
+use crate::{Data, GlobalOptions, Postgres, Probe, ProbeReport, SqlTest};
 
 const PROBE_NAME: &'static str = "Postgres";
 
@@ -44,9 +44,8 @@ impl Probe for Postgres {
         let mut report = ProbeReport::new(PROBE_NAME, self.host.clone());
 
         match foo(&self.sql, &mut client, &mut report) {
-            Ok((data, metrics)) => {
+            Ok(data) => {
                 report.data.extend(data);
-                report.metrics.extend(metrics);
                 Ok(report)
             }
             Err(e) => Err(e),
@@ -54,13 +53,9 @@ impl Probe for Postgres {
     }
 }
 
-fn foo(
-    sql: &Option<SqlTest>,
-    client: &mut Client,
-    report: &ProbeReport,
-) -> Result<(Data, Metrics)> {
+fn foo(sql: &Option<SqlTest>, client: &mut Client, report: &mut ProbeReport) -> Result<Data> {
     match sql {
-        None => Ok((Default::default(), Default::default())),
+        None => Ok(Default::default()),
         Some(sql) => {
             let query_result = client.query(sql.query.as_str(), &[]);
             match query_result {
@@ -70,9 +65,7 @@ fn foo(
                         .enumerate()
                         .map(|(pos, row)| (pos.to_string(), format!("{:?}", row)))
                         .collect();
-                    let mut metrics = Vec::with_capacity(1);
-                    metrics.sort();
-                    Ok((data, metrics))
+                    Ok(data)
                 }
                 Err(_) => Err(AssertionError(report.clone())),
             }

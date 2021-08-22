@@ -3,7 +3,7 @@ use secrecy::{ExposeSecret, SecretString};
 
 use crate::error::InquestError::AssertionError;
 use crate::Result;
-use crate::{Data, GlobalOptions, Metrics, Oracle, Probe, ProbeReport, SqlTest};
+use crate::{Data, GlobalOptions, Oracle, Probe, ProbeReport, SqlTest};
 
 // const GO_REMOVE: GlobalOptions = GlobalOptions { timeout: Duration::from_secs(30) };
 
@@ -44,9 +44,8 @@ impl Probe for Oracle {
         let mut report = ProbeReport::new(PROBE_NAME, connection_string);
 
         match foo(&self.sql, &connection, &mut report) {
-            Ok((data, metrics)) => {
+            Ok(data) => {
                 report.data.extend(data);
-                report.metrics.extend(metrics);
                 Ok(report)
             }
             Err(e) => Err(e),
@@ -54,13 +53,9 @@ impl Probe for Oracle {
     }
 }
 
-fn foo(
-    sql: &Option<SqlTest>,
-    connection: &Connection,
-    report: &ProbeReport,
-) -> Result<(Data, Metrics)> {
+fn foo(sql: &Option<SqlTest>, connection: &Connection, report: &ProbeReport) -> Result<Data> {
     match sql {
-        None => Ok((Default::default(), Default::default())),
+        None => Ok(Default::default()),
         Some(sql) => {
             let query_result = connection.query(&sql.query, &[]);
             match query_result {
@@ -69,9 +64,7 @@ fn foo(
                         .enumerate()
                         .map(|(pos, row)| (pos.to_string(), format!("{:?}", row.unwrap())))
                         .collect();
-                    let mut metrics = Vec::with_capacity(1);
-                    metrics.sort();
-                    Ok((data, metrics))
+                    Ok(data)
                 }
                 Err(_) => Err(AssertionError(report.clone())),
             }

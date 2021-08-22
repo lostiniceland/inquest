@@ -26,7 +26,6 @@ pub trait Probe {
 type ProbeBox = Box<dyn Probe>;
 type Probes = Vec<ProbeBox>;
 pub(crate) type Data = Vec<(String, String)>;
-pub(crate) type Metrics = Vec<(String, String)>;
 pub(crate) type ResultTuple = (Vec<ProbeReport>, Vec<InquestError>);
 
 pub type Result<T> = result::Result<T, InquestError>;
@@ -36,7 +35,6 @@ pub struct ProbeReport {
     pub probe_name: &'static str,
     pub probe_identifier: String,
     pub data: Data,
-    pub metrics: Metrics,
 }
 
 impl ProbeReport {
@@ -45,7 +43,6 @@ impl ProbeReport {
             probe_name,
             probe_identifier,
             data: Default::default(),
-            metrics: Default::default(),
         };
     }
 }

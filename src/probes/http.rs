@@ -38,7 +38,6 @@ fn validate_result(call_result: reqwest::Result<Response>, config: &Http) -> Res
                 probe_name: PROBE_NAME,
                 probe_identifier: config.url.to_string(),
                 data: Default::default(),
-                metrics: Default::default(),
             };
 
             response.headers().iter().for_each(|header| {

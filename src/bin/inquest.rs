@@ -109,12 +109,6 @@ impl<'a> Display for ReportDisplay<'a, ProbeReport> {
                 writeln!(f, "\t{}: {}", data.0, data.1)?;
             }
         }
-        if !self.0.metrics.is_empty() {
-            writeln!(f, "Acquired Metrics")?;
-            for metric in &self.0.metrics {
-                writeln!(f, "\t{}:  {}", metric.0, metric.1)?;
-            }
-        }
         Ok(())
     }
 }
