@@ -79,3 +79,27 @@ fn foo(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{Postgres, GO};
+    use secrecy::SecretString;
+    use std::str::FromStr;
+
+    #[test]
+    fn probe_uses_documented_defaults() {
+        let probe = Postgres::new(
+            None,
+            None,
+            None,
+            "user".to_string(),
+            SecretString::from_str("password").unwrap(),
+            None,
+            &GO,
+        );
+
+        assert_eq!("localhost", &probe.host);
+        assert_eq!(5432, probe.port);
+        assert_eq!("postgres", &probe.database);
+    }
+}

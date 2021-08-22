@@ -13,6 +13,10 @@ mod error;
 mod input;
 mod probes;
 
+const GO: GlobalOptions = GlobalOptions {
+    timeout: Duration::from_secs(30),
+};
+
 /// A 'Probe' is implementing some for of testing remote functionality based on a given
 /// configuration.
 pub trait Probe {

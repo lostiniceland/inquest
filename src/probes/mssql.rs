@@ -22,7 +22,7 @@ impl MSSql {
         MSSql {
             options,
             host: host.unwrap_or("localhost".to_string()),
-            port: port.unwrap_or(5432),
+            port: port.unwrap_or(1433),
             user,
             password,
             sql,
@@ -127,3 +127,25 @@ impl Probe for MSSql {
 //         }
 //     }
 // }
+
+#[cfg(test)]
+mod tests {
+    use crate::{MSSql, GO};
+    use secrecy::SecretString;
+    use std::str::FromStr;
+
+    #[test]
+    fn probe_uses_documented_defaults() {
+        let probe = MSSql::new(
+            None,
+            None,
+            "user".to_string(),
+            SecretString::from_str("password").unwrap(),
+            None,
+            &GO,
+        );
+
+        assert_eq!("localhost", &probe.host);
+        assert_eq!(1433, probe.port);
+    }
+}

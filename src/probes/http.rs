@@ -62,3 +62,16 @@ fn validate_result(call_result: reqwest::Result<Response>, config: &Http) -> Res
             // error_code: s.status().map(|x|x.as_u16()).unwrap_or(500)}
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{Http, GO};
+    use url::Url;
+
+    #[test]
+    fn probe_uses_documented_defaults() {
+        let probe = Http::new(Url::parse("http://www.foo.bar").unwrap(), None, None, &GO);
+
+        assert_eq!(200, probe.status);
+    }
+}

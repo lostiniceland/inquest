@@ -78,3 +78,26 @@ fn foo(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{Oracle, GO};
+    use secrecy::SecretString;
+    use std::str::FromStr;
+
+    #[test]
+    fn probe_uses_documented_defaults() {
+        let probe = Oracle::new(
+            None,
+            None,
+            "SID".to_string(),
+            "user".to_string(),
+            SecretString::from_str("password").unwrap(),
+            None,
+            &GO,
+        );
+
+        assert_eq!("localhost", &probe.host);
+        assert_eq!(1521, probe.port);
+    }
+}

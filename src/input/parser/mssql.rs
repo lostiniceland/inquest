@@ -2,9 +2,9 @@ use hocon::Hocon;
 use secrecy::SecretString;
 
 use crate::error::InquestError;
-use crate::input::parser::{parse_sql, GO};
-use crate::Result;
+use crate::input::parser::parse_sql;
 use crate::{Config, MSSql};
+use crate::{Result, GO};
 
 pub(crate) fn parse_mssql(hocon: &Hocon) -> Result<Vec<Config>> {
     if let Hocon::Array(mssqls) = &hocon {

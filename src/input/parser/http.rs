@@ -2,9 +2,8 @@ use hocon::Hocon;
 use url::Url;
 
 use crate::error::InquestError;
-use crate::input::parser::GO;
-use crate::Result;
 use crate::{Config, Http};
+use crate::{Result, GO};
 
 pub(crate) fn parse_http(hocon: &Hocon) -> Result<Vec<Config>> {
     if let Hocon::Array(http_specs) = &hocon {

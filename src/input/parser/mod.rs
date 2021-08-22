@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use hocon::Hocon;
 use log::warn;
 
@@ -9,16 +7,12 @@ use crate::input::parser::mssql::parse_mssql;
 use crate::input::parser::oracle::parse_oracle;
 use crate::input::parser::postgres::parse_postgres;
 use crate::Result;
-use crate::{Config, GlobalOptions, ServiceSpecification, SqlTest};
+use crate::{Config, ServiceSpecification, SqlTest};
 
 mod http;
 mod mssql;
 mod oracle;
 mod postgres;
-
-const GO: GlobalOptions = GlobalOptions {
-    timeout: Duration::from_secs(30),
-};
 
 pub fn parse(hocon: &Hocon) -> Result<Vec<ServiceSpecification>> {
     let root = &hocon["probe-specification"];
