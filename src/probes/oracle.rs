@@ -1,7 +1,7 @@
 use oracle::Connection;
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::error::InquestError::AssertionError;
+use crate::error::InquestError::{AssertionError, FailedExecutionError};
 use crate::Result;
 use crate::{Data, GlobalOptions, Oracle, Probe, ProbeReport, SqlTest};
 
@@ -34,16 +34,10 @@ impl Oracle {
 /// Implements a Oracle probe based on the oracle crate which again uses the ODPI-C client.
 impl Probe for Oracle {
     fn execute(&self) -> Result<ProbeReport> {
-        let connection_string = format!("//{}:{}/{}", &self.host, &self.port, &self.sid);
-        let connection = Connection::connect(
-            &self.user,
-            &self.password.expose_secret(),
-            connection_string.clone(),
-        )?;
+        let connection = establish_connection(self)?;
+        let mut report = ProbeReport::new(PROBE_NAME, connection.current_schema()?);
 
-        let mut report = ProbeReport::new(PROBE_NAME, connection_string);
-
-        match foo(&self.sql, &connection, &mut report) {
+        match run_sql(&self.sql, &connection, &mut report) {
             Ok(data) => {
                 report.data.extend(data);
                 Ok(report)
@@ -53,7 +47,20 @@ impl Probe for Oracle {
     }
 }
 
-fn foo(sql: &Option<SqlTest>, connection: &Connection, report: &ProbeReport) -> Result<Data> {
+fn establish_connection(probe: &Oracle) -> Result<Connection> {
+    let connection_string = format!("//{}:{}/{}", &probe.host, &probe.port, &probe.sid);
+    Connection::connect(
+        &probe.user,
+        &probe.password.expose_secret(),
+        connection_string.clone(),
+    )
+    // FIXME why is this mapping needed? There is a FROM in errors.rs
+    .map_err(|e| FailedExecutionError {
+        source: Box::new(e),
+    })
+}
+
+fn run_sql(sql: &Option<SqlTest>, connection: &Connection, report: &ProbeReport) -> Result<Data> {
     match sql {
         None => Ok(Default::default()),
         Some(sql) => {

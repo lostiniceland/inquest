@@ -26,7 +26,7 @@ pub trait Probe {
 type ProbeBox = Box<dyn Probe>;
 type Probes = Vec<ProbeBox>;
 pub(crate) type Data = Vec<(String, String)>;
-pub(crate) type ResultTuple = (Vec<ProbeReport>, Vec<InquestError>);
+pub(crate) type ReportsAndErrors = (Vec<ProbeReport>, Vec<InquestError>);
 
 pub type Result<T> = result::Result<T, InquestError>;
 
@@ -165,7 +165,7 @@ pub struct ServiceSpecification {
     pub(crate) probe_configs: Vec<Config>,
 }
 
-fn execute_probes<'a>(probes: Probes) -> Result<ResultTuple> {
+fn execute_probes<'a>(probes: Probes) -> Result<ReportsAndErrors> {
     let mut reports = Vec::with_capacity(probes.len());
     let mut failures = Vec::with_capacity(probes.len());
     for probe in probes {
@@ -197,7 +197,7 @@ fn prepare_probes_from_spec(specs: Vec<ServiceSpecification>) -> Probes {
 
 /// Given a path to a HOCON config, the config is parsed, the secrets decrypted, and the probes
 /// executed.
-pub fn run_from_config(path: &Path) -> Result<ResultTuple> {
+pub fn run_from_config(path: &Path) -> Result<ReportsAndErrors> {
     let spec = input::load_hocon_config(path)?;
     let probes = prepare_probes_from_spec(spec);
     execute_probes(probes)

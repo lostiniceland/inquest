@@ -1,7 +1,7 @@
 use postgres::{Client, NoTls};
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::error::InquestError::AssertionError;
+use crate::error::InquestError::{AssertionError, FailedExecutionError};
 use crate::Result;
 use crate::{Data, GlobalOptions, Postgres, Probe, ProbeReport, SqlTest};
 
@@ -32,18 +32,11 @@ impl Postgres {
 /// Implements a Postgres probe based on the postgres crate.
 impl Probe for Postgres {
     fn execute(&self) -> Result<ProbeReport> {
-        let mut client = Client::configure()
-            .host(&self.host)
-            .port(self.port)
-            .user(&self.user)
-            .dbname(&self.database)
-            .password(&self.password.expose_secret())
-            .connect_timeout(self.options.timeout)
-            .connect(NoTls)?;
-
+        let mut client = establish_connection(self)?;
+        // connection was successful
         let mut report = ProbeReport::new(PROBE_NAME, self.host.clone());
 
-        match foo(&self.sql, &mut client, &mut report) {
+        match run_sql(&self.sql, &mut client, &mut report) {
             Ok(data) => {
                 report.data.extend(data);
                 Ok(report)
@@ -53,7 +46,22 @@ impl Probe for Postgres {
     }
 }
 
-fn foo(sql: &Option<SqlTest>, client: &mut Client, report: &mut ProbeReport) -> Result<Data> {
+fn establish_connection(probe: &Postgres) -> Result<Client> {
+    Client::configure()
+        .host(&probe.host)
+        .port(probe.port)
+        .user(&probe.user)
+        .dbname(&probe.database)
+        .password(&probe.password.expose_secret())
+        .connect_timeout(probe.options.timeout)
+        .connect(NoTls)
+        // FIXME why is this mapping needed? There is a FROM in errors.rs
+        .map_err(|e| FailedExecutionError {
+            source: Box::new(e),
+        })
+}
+
+fn run_sql(sql: &Option<SqlTest>, client: &mut Client, report: &mut ProbeReport) -> Result<Data> {
     match sql {
         None => Ok(Default::default()),
         Some(sql) => {

@@ -3,8 +3,9 @@ use tiberius::error::Error;
 use tiberius::{AuthMethod, Client, Config};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
-use tokio_util::compat::TokioAsyncWriteCompatExt;
+use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 
+use crate::error::InquestError::AssertionError;
 use crate::Result;
 use crate::{Data, GlobalOptions, MSSql, Probe, ProbeReport, SqlTest};
 
@@ -33,98 +34,77 @@ impl MSSql {
 /// Implements a MSSql probe based on the MSSql crate.
 impl Probe for MSSql {
     fn execute(&self) -> Result<ProbeReport> {
-        let mut config = Config::new();
-
-        config.host(&self.host);
-        config.port(self.port);
-        config.trust_cert();
-        config.authentication(AuthMethod::sql_server(
-            &self.user,
-            &self.password.expose_secret(),
-        ));
-
-        // To be able to use Tokio's tcp, we're using the `compat_write` from
-        // the `TokioAsyncWriteCompatExt` to get a stream compatible with the
-        // traits from the `futures` crate.
-        let report_future = async {
-            let tcp = TcpStream::connect(config.get_addr()).await?;
-            tcp.set_nodelay(true)?;
-            let mut client = match Client::connect(config, tcp.compat_write()).await {
-                Ok(client) => client,
-                // The server wants us to redirect to a different address
+        let future = async {
+            match establish_connection(self, None, None).await {
+                Ok(con) => Ok(con),
                 Err(Error::Routing { host, port }) => {
-                    let mut config = Config::new();
-                    config.host(&host);
-                    config.port(port);
-                    config.trust_cert();
-                    config.authentication(AuthMethod::sql_server(
-                        &self.user,
-                        &self.password.expose_secret(),
-                    ));
-
-                    let tcp = TcpStream::connect(config.get_addr()).await?;
-                    tcp.set_nodelay(true)?;
-
-                    // we should not have more than one redirect, so we'll short-circuit here.
-                    Client::connect(config, tcp.compat_write()).await?
+                    establish_connection(self, Some(host), Some(port)).await
                 }
-                Err(e) => Err(e)?,
-            };
-            let rows = match &self.sql {
-                None => Default::default(),
-                Some(sql) => {
-                    let query_stream = client.simple_query(sql.query.as_str()).await?;
-                    // we expect only simple queries, so we do not stream each row and rather collect the full set into memory
-                    let rows = query_stream.into_results().await?;
-                    Some(rows)
-                }
-            };
-
-            match rows {
-                None => Ok(Default::default()),
-                Some(rows) => {
-                    let data: Data = rows
-                        .into_iter()
-                        .flatten()
-                        .enumerate()
-                        .map(|(pos, row)| (pos.to_string(), format!("{:?}", row)))
-                        .collect();
-                    println!("{:?}", data);
-                    Ok(data)
-                }
+                Err(e) => Err(e),
             }
         };
-        let result = Runtime::new().unwrap().block_on(report_future); // FIXME will be done later: lib will only use async traits but no runtime (this will be handled by the cli-app)
-
+        let tokio_runtime = Runtime::new().unwrap();
+        let mut client = tokio_runtime.block_on(future)?;
         let mut report = ProbeReport::new(PROBE_NAME, self.host.clone());
 
-        match result {
-            Ok(data) => {
-                report.data.extend(data);
-                Ok(report)
-            }
-            Err(e) => Err(e),
-        }
+        tokio_runtime.block_on(run_sql(&self.sql, &mut client, &mut report))?;
+        Ok(report)
     }
 }
 
-// async fn foo(sql: &Option<SqlTest>, client: &mut Client<Compat<TcpStream>>,report: &ProbeReport) -> Result<(Data, Metrics)> {
-//     match sql {
-//         None => Ok((Default::default(), Default::default())),
-//         Some(sql) => {
-//             let query_result = client.simple_query(sql.query.as_str());
-//             match query_result {
-//                 Ok(rows) => {
-//                     let data: Data = rows.into_iter().enumerate().map(|(pos, row)| (pos.to_string(), format!("{:?}", row))).collect();
-//                     let mut metrics = Vec::with_capacity(1);
-//                     metrics.sort();
-//                     Ok((data, metrics))
-//                 }
-//                 Err(_) => Err(AssertionError(report.clone()))
-//             }
-//         }
-//     }
-// }
+/// Creates a future yielding the MSSQL client.
+/// In case a Error::Routing is received, this method is called again with the updated host and port
+async fn establish_connection(
+    probe: &MSSql,
+    redirect_host: Option<String>,
+    redirect_port: Option<u16>,
+) -> std::result::Result<Client<Compat<TcpStream>>, tiberius::error::Error> {
+    let mut config = Config::new();
+    config.trust_cert();
+    config.authentication(AuthMethod::sql_server(
+        &probe.user,
+        &probe.password.expose_secret(),
+    ));
+    // in case we have receive a redirect-error on the first attempt, use the redirect-options
+    // instead of the probe-values
+    config.host(redirect_host.unwrap_or(probe.host.clone()));
+    config.port(redirect_port.unwrap_or(probe.port));
+
+    let tcp = TcpStream::connect(config.get_addr()).await?;
+    tcp.set_nodelay(true)?;
+
+    // we should not have more than one redirect, so we'll short-circuit here.
+    Client::connect(config, tcp.compat_write()).await
+}
+
+async fn run_sql(
+    sql: &Option<SqlTest>,
+    client: &mut Client<Compat<TcpStream>>,
+    report: &mut ProbeReport,
+) -> Result<()> {
+    match sql {
+        None => Ok(Default::default()),
+        Some(sql) => {
+            match client
+                .simple_query(sql.query.as_str())
+                .await?
+                .into_results()
+                .await
+            {
+                Ok(rows) => {
+                    let data: Data = rows
+                        .into_iter()
+                        .enumerate()
+                        .map(|(pos, row)| (pos.to_string(), format!("{:?}", row)))
+                        .collect();
+                    report.data.extend(data);
+                    Ok(())
+                }
+                Err(_) => Err(AssertionError(report.clone())),
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
