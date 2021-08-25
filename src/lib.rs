@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[macro_use]
+extern crate assert_matches;
+
 use std::path::Path;
 use std::result;
 use std::time::Duration;
@@ -9,7 +13,7 @@ use crate::crypto::decrypt_secret;
 use crate::error::InquestError;
 
 pub mod crypto;
-mod error;
+pub mod error;
 mod input;
 mod probes;
 

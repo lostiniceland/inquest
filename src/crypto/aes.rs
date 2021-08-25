@@ -70,7 +70,6 @@ impl AesCrypto {
 
 /// Encrypts the given String with an AES Block-Cypher and Base64 encodes the resulting bytes
 /// in order to have a well-formed UTF-8 String to return
-// FIXME key should be SecretString as well
 pub fn encrypt(text: SecretString, key: Option<SecretString>) -> Result<String> {
     let crypto = AesCrypto::new(key);
     Ok(base64::encode(crypto?.encrypt(text)))
@@ -78,7 +77,6 @@ pub fn encrypt(text: SecretString, key: Option<SecretString>) -> Result<String> 
 
 /// Decrypts the given String by first reverting the Base64 encoding to the former bytes which
 /// are then decrypted with the former AES Block-Cypher
-// FIXME key should be SecretString as well
 pub fn decrypt(encrypted: String, key: Option<SecretString>) -> Result<String> {
     let crypto = AesCrypto::new(key);
     let text = crypto?.decrypt(base64::decode(encrypted)?);
@@ -94,34 +92,23 @@ mod tests {
 
     #[test]
     // #[should_panic(expected="Key must consist of 32 characters!")]
-    fn fail_on_key_to_short() {
-        let key = Some(SecretString::new("to short".to_string())); // less than 10
-        let mut result = false;
-        if let Err(InquestError::BadCryptoKeyError { .. }) =
-            encrypt(SecretString::new("hello world".to_string()), key)
-        {
-            result = true;
-        };
-        assert_eq!(true, result, "Expected an InquestError::BadCryptoKeyError")
-        // encrypt("hello world".to_string(), key).unwrap();
+    fn encrypt_fails_on_key_to_short() {
+        let key = "to short"; // less than 10
+        let result = encrypt(
+            SecretString::new("hello world".to_string()),
+            Some(SecretString::new(key.to_string())),
+        );
+        assert_matches!(result, Err(InquestError::BadCryptoKeyError {length}) if length == key.len());
     }
 
     #[test]
     // #[should_panic(expected="Key must consist of 32 characters!")]
-    fn fail_on_key_to_long() {
-        let key = SecretString::new(format!("{:0>33}", "key")); // key will be to long by left-padding it to 33 characters
-        let mut result = false;
-        if let Err(InquestError::BadCryptoKeyError { .. }) =
-            encrypt(SecretString::new("hello world".to_string()), Some(key))
-        {
-            result = true;
-        };
-        assert_eq!(true, result, "Expected an InquestError::BadCryptoKeyError")
-
-        // this doesnt work because PartialEq on InquestError fails due to transparent errors not supporting it
-        // let result = panic::catch_unwind(|| {
-        //     encrypt(SecretString::new("hello world".to_string()), Some(key.as_str()))
-        // });
-        // assert_eq!(InquestError::BadCryptoKeyError{length: 33}, result, "Expected an InquestError::BadCryptoKeyError")
+    fn encrypt_fails_on_key_to_long() {
+        let key = format!("{:0>33}", "key"); // key will be to long by left-padding it to 33 characters
+        let result = encrypt(
+            SecretString::new("hello world".to_string()),
+            Some(SecretString::new(key.clone())),
+        );
+        assert_matches!(result, Err(InquestError::BadCryptoKeyError {length}) if length == key.len());
     }
 }
