@@ -34,7 +34,13 @@ impl Probe for Postgres {
     fn execute(&self) -> Result<ProbeReport> {
         let mut client = establish_connection(self)?;
         // connection was successful
-        let mut report = ProbeReport::new(PROBE_NAME, self.host.clone());
+        let mut report = ProbeReport::new(
+            PROBE_NAME,
+            format!(
+                "{}:{}/{}/{}",
+                self.host, self.port, self.database, self.user
+            ),
+        );
 
         match run_sql(&self.sql, &mut client, &mut report) {
             Ok(data) => {

@@ -35,7 +35,10 @@ impl Oracle {
 impl Probe for Oracle {
     fn execute(&self) -> Result<ProbeReport> {
         let connection = establish_connection(self)?;
-        let mut report = ProbeReport::new(PROBE_NAME, connection.current_schema()?);
+        let mut report = ProbeReport::new(
+            PROBE_NAME,
+            format!("{}:{}/{}/{}", self.host, self.port, self.sid, self.user),
+        );
 
         match run_sql(&self.sql, &connection, &mut report) {
             Ok(data) => {

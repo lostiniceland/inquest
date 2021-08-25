@@ -45,7 +45,10 @@ impl Probe for MSSql {
         };
         let tokio_runtime = Runtime::new().unwrap();
         let mut client = tokio_runtime.block_on(future)?;
-        let mut report = ProbeReport::new(PROBE_NAME, self.host.clone());
+        let mut report = ProbeReport::new(
+            PROBE_NAME,
+            format!("{}:{}/{}", self.host, self.port, self.user),
+        );
 
         tokio_runtime.block_on(run_sql(&self.sql, &mut client, &mut report))?;
         Ok(report)

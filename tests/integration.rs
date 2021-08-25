@@ -25,7 +25,6 @@ fn run_http_probe() {
         assert_eq!(report1.probe_identifier.as_str(), "https://httpbin.org/get");
         assert_eq!(report2.probe_identifier.as_str(), "https://httpbin.org/status/201");
     });
-    // assert_eq!(result.0.len(), 2);
 }
 
 #[test]
@@ -46,7 +45,7 @@ fn run_postgres_probe() {
     assert!(result.is_ok());
     assert_matches!(result.unwrap().0.as_slice(), [report] => {
         assert_eq!(report.probe_name, "Postgres");
-        assert_eq!(report.probe_identifier.as_str(), "localhost");
+        assert_eq!(report.probe_identifier.as_str(), "localhost:5432/test/admin");
     });
 }
 
@@ -57,7 +56,7 @@ fn run_oracle_probe() {
     assert!(result.is_ok());
     assert_matches!(result.unwrap().0.as_slice(), [report] => {
         assert_eq!(report.probe_name, "Oracle");
-        assert_eq!(report.probe_identifier.as_str(), "");
+        assert_eq!(report.probe_identifier.as_str(), "localhost:1521/XEPDB1/test");
     });
 }
 
@@ -68,6 +67,6 @@ fn run_mssql_probe() {
     assert!(result.is_ok());
     assert_matches!(result.unwrap().0.as_slice(), [report] => {
         assert_eq!(report.probe_name, "MSSql");
-        assert_eq!(report.probe_identifier.as_str(), "localhost");
+        assert_eq!(report.probe_identifier.as_str(), "localhost:1433/SA");
     });
 }
