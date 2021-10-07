@@ -82,14 +82,21 @@ fn command_execute(config: &Path) -> Result<()> {
                 .iter()
                 .map(|r| ReportDisplay(r))
                 .collect::<Vec<ReportDisplay<ProbeReport>>>();
-            let mut terminal = term::stdout().unwrap(); // FIXME only works with -it in Docker. Do a proper match
-            terminal.fg(term::color::RED).unwrap();
-            println!("{:#?}", failures);
-            terminal.fg(term::color::GREEN).unwrap();
-            for report in reports {
-                println!("{:#}", report);
+            if let Some(mut terminal) = term::stdout() {
+                terminal.fg(term::color::RED).unwrap();
+                println!("{:#?}", failures);
+                terminal.fg(term::color::GREEN).unwrap();
+                for report in reports {
+                    println!("{:#}", report);
+                }
+                terminal.reset()?;
+            } else {
+                println!("{:#?}", failures);
+                for report in reports {
+                    println!("{:#}", report);
+                }
             }
-            terminal.reset()?;
+
             Ok(())
         }
         Err(e) => Err(e.into()),
