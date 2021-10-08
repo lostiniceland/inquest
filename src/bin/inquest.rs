@@ -9,13 +9,16 @@ use clap::{App, Arg, SubCommand};
 use secrecy::SecretString;
 
 use libinquest::crypto::encrypt_secret;
+use libinquest::error::InquestError;
 use libinquest::{run_from_config, ProbeReport};
 
 struct ReportDisplay<'a, T>(&'a T);
+struct ErrorDisplay<'a, T>(&'a T);
 
 fn main() {
     stderrlog::new().verbosity(1).quiet(false).init().unwrap();
 
+    // https://nick.groenen.me/posts/rust-error-handling/#1-simplified-result-type
     if let Err(err) = run() {
         eprintln!("Error: {:?}", err);
         std::process::exit(1);
@@ -82,16 +85,29 @@ fn command_execute(config: &Path) -> Result<()> {
                 .iter()
                 .map(|r| ReportDisplay(r))
                 .collect::<Vec<ReportDisplay<ProbeReport>>>();
+            let failures = failures
+                .iter()
+                .map(|e| ErrorDisplay(e))
+                .collect::<Vec<ErrorDisplay<InquestError>>>();
             if let Some(mut terminal) = term::stdout() {
-                terminal.fg(term::color::RED).unwrap();
-                println!("{:#?}", failures);
+                for failure in failures {
+                    let color = match failure.0 {
+                        InquestError::FailedExecutionError { .. } => term::color::RED,
+                        InquestError::AssertionError(_) => term::color::YELLOW,
+                        _ => term::color::WHITE,
+                    };
+                    terminal.fg(color).unwrap();
+                    println!("{:#}", failure);
+                }
                 terminal.fg(term::color::GREEN).unwrap();
                 for report in reports {
                     println!("{:#}", report);
                 }
                 terminal.reset()?;
             } else {
-                println!("{:#?}", failures);
+                for failure in failures {
+                    println!("{:#}", failure);
+                }
                 for report in reports {
                     println!("{:#}", report);
                 }
@@ -115,6 +131,22 @@ impl<'a> Display for ReportDisplay<'a, ProbeReport> {
             for data in &self.0.data {
                 writeln!(f, "\t{}: {}", data.0, data.1)?;
             }
+        }
+        Ok(())
+    }
+}
+
+impl<'a> Display for ErrorDisplay<'a, InquestError> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match &self.0 {
+            &libinquest::error::InquestError::FailedExecutionError { source } => {
+                writeln!(f, "Probe-Execution failed due to: {}", source)?;
+            }
+            &libinquest::error::InquestError::AssertionError(report) => {
+                let rd = ReportDisplay(report);
+                writeln!(f, "Probe-Assertion failed due to: {}", rd)?;
+            }
+            _ => {}
         }
         Ok(())
     }
