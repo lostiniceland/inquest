@@ -112,7 +112,7 @@ mod tests {
         let spec = setup(content);
         for service in &spec {
             for p in &service.probe_configs {
-                &matcher(p);
+                let _ = &matcher(p);
                 matched = true;
             }
         }
