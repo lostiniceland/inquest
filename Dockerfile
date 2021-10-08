@@ -1,3 +1,5 @@
+
+
 # Dockerfile for creating a statically-linked Rust application using docker's
 # multi-stage build feature. This also leverages the docker build cache to avoid
 # re-downloading dependencies if they have not changed.
@@ -14,7 +16,9 @@ RUN rustup target add x86_64-unknown-linux-gnu
 RUN USER=root cargo new inquest
 WORKDIR /usr/src/inquest
 COPY Cargo.toml Cargo.lock ./
-RUN cargo build --release
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/src/inquest/target \
+    cargo build --release
 
 # Copy the source and build the application.
 COPY src ./src
