@@ -1,0 +1,96 @@
+= Development
+
+== Prerequisites
+
+.Additional header-files
+[source,bash]
+----
+sudo zypper in openssl-devel
+----
+1. Openssl-headers required for TCP dependency
+
+== Integration Testing
+
+During `build` or `test`, additional integration-tests are executed against the supported databases.
+Those require the provided Docker Compose environment to be started via `docker-compose up`.
+
+== Cross-Compiling Windows from Linux
+
+.Installing Prerequisites
+[source,bash]
+----
+sudo zypper in mingw64-cross-gcc # <1>
+rustup toolchain install stable-x86_64-pc-windows-gnu # <2>
+rustup target add x86_64-pc-windows-gnu # <3>
+# rustup target add x86_64-apple-darwin # <4>
+----
+1. Additional system package for GCC for toolchain (might be named a little different on other distros)
+2. Install the Windows-GCC toolchain
+3. Install target for Windows-GCC
+
+.Building Windows Binary
+[source,bash]
+----
+cargo build --release --target x86_64-pc-windows-gnu # <1>
+----
+1. Building `inquest.exe` to `target/x86_64-pc-windows-gnu/
+
+== Cross-Compiling Mac from Linux
+
+CAUTION: After spending a weekend trying to cross-compile to OSX I learned that it actually seems to be forbidden to use the Apple SDKs on non-Apple-hardware according to their license agreement.
+Due to this fact, I am not cross-compiling this tool, but I keep this documentation around to preserve the knowledge (and time spent) in case Apple starts to apply some common sense in the future.
+
+Cross-Compiling for Mac is a bit more tedious (to say the least) since there is no "simple" toolchain available via rustup. Instead the https://github.com/tpoechtrager/osxcross[osxcross] project provides the means to create a custom toolchain from XCode packages. Follow the installation instructions and be careful to have all the required system-dependencies available. An additional blogpost can be found https://wapl.es/rust/2019/02/17/rust-cross-compile-linux-to-macos.html[here].
+
+.Installing Prerequisites
+[source,bash]
+----
+sudo zypper in libxar-devel libbz2-devel cmake make clang # and some more <1>
+cd /tmp
+git clone git@github.com:tpoechtrager/osxcross.git
+export OSXCROSS_HOME=/tmp/osxcross
+cd $OSXCROSS_HOME
+curl --output Xcode_13.xip https://developer.apple.com/services-account/download?path=/Developer_Tools/Xcode_13/Xcode_13.xip
+./tools/gen_sdk_package_pbzx.sh Xcode_13.xip
+mv MacOSX11.3.sdk.tar.xz tarballs/
+UNATTENDED=yes OSX_VERSION_MIN=11.3 ./build.sh
+cat <<EOF >> ~/.cargo/config # <4>
+[target.x86_64-apple-darwin]
+linker = "x86_64-apple-darwin20.4-clang"
+ar = "x86_64-apple-darwin20.4-ar"
+EOF
+----
+1. Needed on Suse Tumbleweed in addition to make osxcross prepare package from XCode
+2. Install the Windows-GCC toolchain
+3. Install target for Windows-GCC
+4. Configure the cargo target with the Clang toolchain in osxcross (see `osxcross/target/bin`)
+
+Due to Openssl we need to add the library and openssl-headers to osxcross (it cannot see the ones on the host)
+
+.Installing Prerequisites
+[source,bash]
+----
+export MACOSX_DEPLOYMENT_TARGET=11.3
+export PATH="/tmp/osxcross/target/bin:$PATH"
+osxcross-macports install openssl
+----
+
+
+.Building for OSX
+[source,bash]
+----
+export MACOSX_DEPLOYMENT_TARGET=11.3
+export OSXCROSS_MP_INC=1 # <1>
+export X86_64_APPLE_DARWIN_OPENSSL_LIB_DIR=$(pwd)/osxcross/target/macports/pkgs/opt/local/lib/ # <2>
+export X86_64_APPLE_DARWIN_OPENSSL_INCLUDE_DIR=$(pwd)/osxcross/target/macports/pkgs/opt/local/include/openssl/
+
+export PATH="/tmp/osxcross/target/bin:$PATH"
+CC=o64-clang CXX=o64-clang++ \ # <3>
+# LIBZ_SYS_STATIC=1 \
+cargo build --release --target x86_64-apple-darwin # <5>
+----
+1. Enable automatic compiler includes
+2. Configure the openssl-sys Rust crate with the paths to Openssl lib/headers
+3. Make osxcross toolchain available on PATH
+4. Additional options for Clang
+5. Build with the target configured in `~/.cargo/config`
