@@ -3,7 +3,7 @@
 name = "libinquest"
 version = "0.1.0"
 authors = ["Marc Schlegel <marc.schlegel@gmx.de>"]
-edition = "2018"
+edition = "2021"
 description = "A probing tool to check for external service availability."
 
 [dependencies]
@@ -11,7 +11,7 @@ thiserror = "1.0.*"
 anyhow = "1.0"
 log = "0.4.*"
 stderrlog = "0.5.*"
-reqwest = "0.11.*"
+reqwest = { version="0.11.*", default-features = false, features=["blocking", "rustls", "rustls-tls-native-roots"]}
 url = "2.2.*" # used by reqwest anyways
 oracle = "0.3.*"
 postgres = "0.19.*"
@@ -33,8 +33,7 @@ assert_matches = "1.5"
 
 [features]
 default = [
-  "reqwest/blocking",
-  "tokio-util/compat"
+  "tokio-util/compat",
 ]
 
 [[test]]
