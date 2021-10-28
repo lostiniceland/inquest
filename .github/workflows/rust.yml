@@ -26,7 +26,7 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: "Build"
-        run: cargo build --verbose
+        run: rustup update --force && cargo build --verbose
 
       - name: "Run Unit-Tests"
         run: cargo test --lib --verbose
