@@ -25,6 +25,7 @@ const GO: GlobalOptions = GlobalOptions {
 /// configuration.
 pub trait Probe {
     fn execute<'a>(&self) -> Result<ProbeReport>;
+    fn identifier(&self) -> String;
 }
 
 type ProbeBox = Box<dyn Probe>;
@@ -36,15 +37,13 @@ pub type Result<T> = result::Result<T, InquestError>;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ProbeReport {
-    pub probe_name: &'static str,
     pub probe_identifier: String,
     pub data: Data,
 }
 
 impl ProbeReport {
-    pub(crate) fn new(probe_name: &'static str, probe_identifier: String) -> ProbeReport {
+    pub(crate) fn new(probe_identifier: String) -> ProbeReport {
         return ProbeReport {
-            probe_name,
             probe_identifier,
             data: Default::default(),
         };
@@ -209,14 +208,12 @@ pub fn run_from_config(path: &Path) -> Result<ReportsAndErrors> {
 
 #[cfg(test)]
 mod tests {
-    use crate::error::InquestError::{AssertionError, FailedExecutionError, IOError};
+    use crate::error::InquestError::{AssertionMatchingError, FailedExecutionError, IOError};
     use crate::Result;
     use crate::{execute_probes, Probe, ProbeReport};
 
     #[test]
     fn failed_probe_does_not_cancel_remaining() {
-        const MOCK_SUCCESS_NAME: &str = "success";
-        const MOCK_FAILURE_ASSERTION_NAME: &str = "failure in assertion";
         // GIVEN:
         struct SuccessMock {}
         struct FailedExecutionProbeMock {}
@@ -225,28 +222,39 @@ mod tests {
         impl Probe for SuccessMock {
             fn execute<'a>(&self) -> Result<ProbeReport> {
                 Ok(ProbeReport {
-                    probe_name: MOCK_SUCCESS_NAME,
-                    probe_identifier: "success mock".to_string(),
+                    probe_identifier: self.identifier(),
                     data: vec![],
                 })
+            }
+
+            fn identifier(&self) -> String {
+                "success mock".to_string()
             }
         }
 
         impl Probe for FailedExecutionProbeMock {
             fn execute<'a>(&self) -> Result<ProbeReport> {
                 Err(FailedExecutionError {
+                    probe_identifier: self.identifier(),
                     source: Box::new(IOError(std::io::Error::from_raw_os_error(1))),
                 })
+            }
+
+            fn identifier(&self) -> String {
+                "failed mock".to_string()
             }
         }
 
         impl Probe for AssertionErrorProbeMock {
             fn execute<'a>(&self) -> Result<ProbeReport> {
-                Err(AssertionError(ProbeReport {
-                    probe_name: MOCK_FAILURE_ASSERTION_NAME,
-                    probe_identifier: "assertion error".to_string(),
+                Err(AssertionMatchingError(ProbeReport {
+                    probe_identifier: self.identifier(),
                     data: vec![],
                 }))
+            }
+
+            fn identifier(&self) -> String {
+                "assertion error".to_string()
             }
         }
 
@@ -264,22 +272,10 @@ mod tests {
 
         // THEN: the result contains 1 successful report in Left/0
         assert_eq!(1, result.0.len());
-        assert_matches!(
-            result.0[0],
-            ProbeReport {
-                probe_name: MOCK_SUCCESS_NAME,
-                ..
-            }
-        ); // we expect one success-report
-           // AND: a FailedExecutionError in Right/1
+        assert_matches!(result.0[0], ProbeReport { .. }); // we expect one success-report
+                                                          // AND: a FailedExecutionError in Right/1
         assert_matches!(result.1[0], FailedExecutionError { .. });
         // AND: a AssertionError in the Right/1
-        assert_matches!(
-            result.1[1],
-            AssertionError(ProbeReport {
-                probe_name: MOCK_FAILURE_ASSERTION_NAME,
-                ..
-            })
-        );
+        assert_matches!(result.1[1], AssertionMatchingError(ProbeReport { .. }));
     }
 }

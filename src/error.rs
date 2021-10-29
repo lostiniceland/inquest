@@ -38,11 +38,19 @@ pub enum InquestError {
 
     #[error("Failure during probe execution!")]
     FailedExecutionError {
+        probe_identifier: String,
+        source: Box<dyn Error + 'static + Send + Sync>, // additional types needed for thread-safety
+                                                        // diagnostics: DiagnosticReport,
+    },
+
+    #[error("Failure during assertion execution!")]
+    FailedAssertionError {
+        probe_identifier: String,
         source: Box<dyn Error + 'static + Send + Sync>, // additional types needed for thread-safety
     },
 
     #[error("Probe execution failed, due to unmatched assertions")]
-    AssertionError(ProbeReport),
+    AssertionMatchingError(ProbeReport),
 
     #[error(transparent)]
     CryptoError(#[from] DecodeError),
@@ -54,26 +62,4 @@ pub enum InquestError {
     ReqwestError(#[from] reqwest::Error),
 }
 
-impl From<tokio_postgres::Error> for InquestError {
-    fn from(source: tokio_postgres::Error) -> Self {
-        return InquestError::FailedExecutionError {
-            source: Box::new(source),
-        };
-    }
-}
-
-impl From<oracle::Error> for InquestError {
-    fn from(source: oracle::Error) -> Self {
-        return InquestError::FailedExecutionError {
-            source: Box::new(source),
-        };
-    }
-}
-
-impl From<tiberius::error::Error> for InquestError {
-    fn from(source: tiberius::error::Error) -> Self {
-        return InquestError::FailedExecutionError {
-            source: Box::new(source),
-        };
-    }
-}
+pub struct DiagnosticReport {}

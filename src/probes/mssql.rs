@@ -5,9 +5,14 @@ use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 
-use crate::error::InquestError::AssertionError;
+use crate::error::InquestError::{
+    AssertionMatchingError, FailedAssertionError, FailedExecutionError,
+};
 use crate::Result;
 use crate::{Data, GlobalOptions, MSSql, Probe, ProbeReport, SqlTest};
+use std::io;
+use std::net::{SocketAddr, ToSocketAddrs};
+use std::vec;
 
 const PROBE_NAME: &'static str = "MSSql";
 
@@ -44,14 +49,20 @@ impl Probe for MSSql {
             }
         };
         let tokio_runtime = Runtime::new().unwrap();
-        let mut client = tokio_runtime.block_on(future)?;
-        let mut report = ProbeReport::new(
-            PROBE_NAME,
-            format!("{}:{}/{}", self.host, self.port, self.user),
-        );
+        let mut client = tokio_runtime
+            .block_on(future)
+            .map_err(|e| FailedExecutionError {
+                probe_identifier: self.identifier(),
+                source: Box::new(e),
+            })?;
+        let mut report = ProbeReport::new(self.identifier());
 
-        tokio_runtime.block_on(run_sql(&self.sql, &mut client, &mut report))?;
+        tokio_runtime.block_on(run_sql(&self, &mut client, &mut report))?;
         Ok(report)
+    }
+
+    fn identifier(&self) -> String {
+        format!("{} - {}:{}/{}", PROBE_NAME, self.host, self.port, self.user)
     }
 }
 
@@ -81,16 +92,20 @@ async fn establish_connection(
 }
 
 async fn run_sql(
-    sql: &Option<SqlTest>,
+    probe: &MSSql,
     client: &mut Client<Compat<TcpStream>>,
     report: &mut ProbeReport,
 ) -> Result<()> {
-    match sql {
+    match &probe.sql {
         None => Ok(Default::default()),
         Some(sql) => {
             match client
                 .simple_query(sql.query.as_str())
-                .await?
+                .await
+                .map_err(|e| FailedAssertionError {
+                    probe_identifier: probe.identifier(),
+                    source: Box::new(e),
+                })?
                 .into_results()
                 .await
             {
@@ -103,9 +118,17 @@ async fn run_sql(
                     report.data.extend(data);
                     Ok(())
                 }
-                Err(_) => Err(AssertionError(report.clone())),
+                Err(_) => Err(AssertionMatchingError(report.clone())),
             }
         }
+    }
+}
+
+impl ToSocketAddrs for MSSql {
+    type Iter = vec::IntoIter<SocketAddr>;
+
+    fn to_socket_addrs(&self) -> io::Result<Self::Iter> {
+        format!("{}:{}", self.host, self.port).to_socket_addrs()
     }
 }
 

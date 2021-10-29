@@ -1,9 +1,12 @@
 use oracle::Connection;
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::error::InquestError::{AssertionError, FailedExecutionError};
+use crate::error::InquestError::{AssertionMatchingError, FailedExecutionError};
+use crate::probes::tcp::foo;
 use crate::Result;
 use crate::{Data, GlobalOptions, Oracle, Probe, ProbeReport, SqlTest};
+use std::net::{SocketAddr, ToSocketAddrs};
+use std::{io, vec};
 
 // const GO_REMOVE: GlobalOptions = GlobalOptions { timeout: Duration::from_secs(30) };
 
@@ -35,10 +38,7 @@ impl Oracle {
 impl Probe for Oracle {
     fn execute(&self) -> Result<ProbeReport> {
         let connection = establish_connection(self)?;
-        let mut report = ProbeReport::new(
-            PROBE_NAME,
-            format!("{}:{}/{}/{}", self.host, self.port, self.sid, self.user),
-        );
+        let mut report = ProbeReport::new(self.identifier());
 
         match run_sql(&self.sql, &connection, &mut report) {
             Ok(data) => {
@@ -48,19 +48,31 @@ impl Probe for Oracle {
             Err(e) => Err(e),
         }
     }
+
+    fn identifier(&self) -> String {
+        format!(
+            "{} - {}:{}/{}/{}",
+            PROBE_NAME, self.host, self.port, self.sid, self.user
+        )
+    }
 }
 
 fn establish_connection(probe: &Oracle) -> Result<Connection> {
     let connection_string = format!("//{}:{}/{}", &probe.host, &probe.port, &probe.sid);
-    Connection::connect(
+    let r = Connection::connect(
         &probe.user,
         &probe.password.expose_secret(),
         connection_string.clone(),
     )
     // FIXME why is this mapping needed? There is a FROM in errors.rs
     .map_err(|e| FailedExecutionError {
+        probe_identifier: probe.identifier(),
         source: Box::new(e),
-    })
+    });
+    if r.is_err() {
+        foo(probe)
+    }
+    r
 }
 
 fn run_sql(sql: &Option<SqlTest>, connection: &Connection, report: &ProbeReport) -> Result<Data> {
@@ -76,9 +88,17 @@ fn run_sql(sql: &Option<SqlTest>, connection: &Connection, report: &ProbeReport)
                         .collect();
                     Ok(data)
                 }
-                Err(_) => Err(AssertionError(report.clone())),
+                Err(_) => Err(AssertionMatchingError(report.clone())),
             }
         }
+    }
+}
+
+impl ToSocketAddrs for Oracle {
+    type Iter = vec::IntoIter<SocketAddr>;
+
+    fn to_socket_addrs(&self) -> io::Result<Self::Iter> {
+        format!("{}:{}", self.host, self.port).to_socket_addrs()
     }
 }
 

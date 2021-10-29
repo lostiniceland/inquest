@@ -1,9 +1,12 @@
 use postgres::{Client, NoTls};
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::error::InquestError::{AssertionError, FailedExecutionError};
+use crate::error::InquestError::{AssertionMatchingError, FailedExecutionError};
 use crate::Result;
 use crate::{Data, GlobalOptions, Postgres, Probe, ProbeReport, SqlTest};
+use std::io;
+use std::net::{SocketAddr, ToSocketAddrs};
+use std::vec;
 
 const PROBE_NAME: &'static str = "Postgres";
 
@@ -34,13 +37,7 @@ impl Probe for Postgres {
     fn execute(&self) -> Result<ProbeReport> {
         let mut client = establish_connection(self)?;
         // connection was successful
-        let mut report = ProbeReport::new(
-            PROBE_NAME,
-            format!(
-                "{}:{}/{}/{}",
-                self.host, self.port, self.database, self.user
-            ),
-        );
+        let mut report = ProbeReport::new(self.identifier());
 
         match run_sql(&self.sql, &mut client, &mut report) {
             Ok(data) => {
@@ -49,6 +46,13 @@ impl Probe for Postgres {
             }
             Err(e) => Err(e),
         }
+    }
+
+    fn identifier(&self) -> String {
+        format!(
+            "{} - {}:{}/{}/{}",
+            PROBE_NAME, self.host, self.port, self.database, self.user
+        )
     }
 }
 
@@ -63,6 +67,7 @@ fn establish_connection(probe: &Postgres) -> Result<Client> {
         .connect(NoTls)
         // FIXME why is this mapping needed? There is a FROM in errors.rs
         .map_err(|e| FailedExecutionError {
+            probe_identifier: probe.identifier(),
             source: Box::new(e),
         })
 }
@@ -81,9 +86,17 @@ fn run_sql(sql: &Option<SqlTest>, client: &mut Client, report: &mut ProbeReport)
                         .collect();
                     Ok(data)
                 }
-                Err(_) => Err(AssertionError(report.clone())),
+                Err(_) => Err(AssertionMatchingError(report.clone())),
             }
         }
+    }
+}
+
+impl ToSocketAddrs for Postgres {
+    type Iter = vec::IntoIter<SocketAddr>;
+
+    fn to_socket_addrs(&self) -> io::Result<Self::Iter> {
+        format!("{}:{}", self.host, self.port).to_socket_addrs()
     }
 }
 
