@@ -1,7 +1,9 @@
 use oracle::Connection;
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::error::InquestError::{AssertionMatchingError, FailedExecutionError};
+use crate::error::InquestError::{
+    AssertionMatchingError, FailedAssertionError, FailedExecutionError,
+};
 use crate::probes::tcp::foo;
 use crate::Result;
 use crate::{Data, GlobalOptions, Oracle, Probe, ProbeReport, SqlTest};
@@ -40,7 +42,7 @@ impl Probe for Oracle {
         let connection = establish_connection(self)?;
         let mut report = ProbeReport::new(self.identifier());
 
-        match run_sql(&self.sql, &connection, &mut report) {
+        match run_sql(&self, &connection, &mut report) {
             Ok(data) => {
                 report.data.extend(data);
                 Ok(report)
@@ -75,8 +77,8 @@ fn establish_connection(probe: &Oracle) -> Result<Connection> {
     r
 }
 
-fn run_sql(sql: &Option<SqlTest>, connection: &Connection, report: &ProbeReport) -> Result<Data> {
-    match sql {
+fn run_sql(probe: &Oracle, connection: &Connection, report: &ProbeReport) -> Result<Data> {
+    match &probe.sql {
         None => Ok(Default::default()),
         Some(sql) => {
             let query_result = connection.query(&sql.query, &[]);
@@ -88,7 +90,11 @@ fn run_sql(sql: &Option<SqlTest>, connection: &Connection, report: &ProbeReport)
                         .collect();
                     Ok(data)
                 }
-                Err(_) => Err(AssertionMatchingError(report.clone())),
+                Err(e) => Err(FailedAssertionError {
+                    probe_identifier: probe.identifier(),
+                    desc: "Error execution sql-query!".to_string(),
+                    source: Box::new(e),
+                }),
             }
         }
     }

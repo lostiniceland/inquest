@@ -247,10 +247,13 @@ mod tests {
 
         impl Probe for AssertionErrorProbeMock {
             fn execute<'a>(&self) -> Result<ProbeReport> {
-                Err(AssertionMatchingError(ProbeReport {
-                    probe_identifier: self.identifier(),
-                    data: vec![],
-                }))
+                Err(AssertionMatchingError(
+                    "foobar".to_string(),
+                    ProbeReport {
+                        probe_identifier: self.identifier(),
+                        data: vec![],
+                    },
+                ))
             }
 
             fn identifier(&self) -> String {
@@ -276,6 +279,6 @@ mod tests {
                                                           // AND: a FailedExecutionError in Right/1
         assert_matches!(result.1[0], FailedExecutionError { .. });
         // AND: a AssertionError in the Right/1
-        assert_matches!(result.1[1], AssertionMatchingError(ProbeReport { .. }));
+        assert_matches!(result.1[1], AssertionMatchingError(_, ProbeReport { .. }));
     }
 }

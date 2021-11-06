@@ -93,7 +93,8 @@ fn command_execute(config: &Path) -> Result<()> {
                 for failure in failures {
                     let color = match failure.0 {
                         InquestError::FailedExecutionError { .. } => term::color::RED,
-                        InquestError::AssertionMatchingError(_) => term::color::YELLOW,
+                        InquestError::FailedAssertionError { .. } => term::color::RED,
+                        InquestError::AssertionMatchingError(..) => term::color::YELLOW,
                         _ => term::color::WHITE,
                     };
                     terminal.fg(color).unwrap();
@@ -121,7 +122,7 @@ fn command_execute(config: &Path) -> Result<()> {
 
 impl<'a> Display for ReportDisplay<'a, ProbeReport> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Probe '{}'", self.0.probe_identifier)?;
+        writeln!(f, "Success '{}'", self.0.probe_identifier)?;
         writeln!(f, "Acquired Data")?;
         if !self.0.data.is_empty() {
             for data in &self.0.data {
@@ -139,14 +140,28 @@ impl<'a> Display for ErrorDisplay<'a, InquestError> {
                 probe_identifier,
                 source,
             } => {
-                writeln!(f, "Probe-Execution failed in {}", probe_identifier)?;
+                writeln!(f, "Failed in '{}'", probe_identifier)?;
                 writeln!(f, "\tCause: {}", source)?;
             }
-            &libinquest::error::InquestError::AssertionMatchingError(report) => {
-                let rd = ReportDisplay(report);
-                writeln!(f, "Probe-Assertion failed due to: {}", rd)?;
+            &libinquest::error::InquestError::FailedAssertionError {
+                probe_identifier,
+                desc,
+                source,
+            } => {
+                writeln!(f, "Failed in '{}': {}", probe_identifier, desc)?;
+                writeln!(f, "\tCause: {}", source)?;
             }
-            _ => {}
+            &libinquest::error::InquestError::AssertionMatchingError(desc, report) => {
+                let rd = ReportDisplay(report);
+                writeln!(
+                    f,
+                    "Assertion failed in '{}': {}",
+                    rd.0.probe_identifier, desc
+                )?;
+            }
+            e => {
+                writeln!(f, "Unhandled Error: {:?}", e);
+            }
         }
         Ok(())
     }

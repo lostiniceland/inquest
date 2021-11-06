@@ -34,7 +34,7 @@ fn run_http_probe_assertion_error() {
     assert!(result.is_ok());
     assert_matches!(
         result.unwrap().1.as_slice(),
-        [InquestError::AssertionMatchingError(_)]
+        [InquestError::AssertionMatchingError(_, _)]
     );
 }
 

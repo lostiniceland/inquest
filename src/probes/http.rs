@@ -56,7 +56,12 @@ fn validate_result(call_result: reqwest::Result<Response>, config: &Http) -> Res
             report.data.sort();
 
             if response.status() != StatusCode::from_u16(config.status).unwrap() {
-                Err(AssertionMatchingError(report.clone()))
+                let desc = format!(
+                    "Expected '{}' but was '{}'",
+                    config.status,
+                    response.status()
+                );
+                Err(AssertionMatchingError(desc, report.clone()))
             } else {
                 Ok(report)
             }

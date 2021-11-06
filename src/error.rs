@@ -46,11 +46,12 @@ pub enum InquestError {
     #[error("Failure during assertion execution!")]
     FailedAssertionError {
         probe_identifier: String,
+        desc: String,
         source: Box<dyn Error + 'static + Send + Sync>, // additional types needed for thread-safety
     },
 
     #[error("Probe execution failed, due to unmatched assertions")]
-    AssertionMatchingError(ProbeReport),
+    AssertionMatchingError(String, ProbeReport),
 
     #[error(transparent)]
     CryptoError(#[from] DecodeError),

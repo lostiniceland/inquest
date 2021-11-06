@@ -104,6 +104,7 @@ async fn run_sql(
                 .await
                 .map_err(|e| FailedAssertionError {
                     probe_identifier: probe.identifier(),
+                    desc: "Error execution sql-query!".to_string(),
                     source: Box::new(e),
                 })?
                 .into_results()
@@ -118,7 +119,11 @@ async fn run_sql(
                     report.data.extend(data);
                     Ok(())
                 }
-                Err(_) => Err(AssertionMatchingError(report.clone())),
+                Err(e) => Err(FailedAssertionError {
+                    probe_identifier: probe.identifier(),
+                    desc: "Error execution sql-query!".to_string(),
+                    source: Box::new(e),
+                }),
             }
         }
     }

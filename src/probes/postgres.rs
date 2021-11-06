@@ -1,7 +1,9 @@
 use postgres::{Client, NoTls};
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::error::InquestError::{AssertionMatchingError, FailedExecutionError};
+use crate::error::InquestError::{
+    AssertionMatchingError, FailedAssertionError, FailedExecutionError,
+};
 use crate::Result;
 use crate::{Data, GlobalOptions, Postgres, Probe, ProbeReport, SqlTest};
 use std::io;
@@ -39,7 +41,7 @@ impl Probe for Postgres {
         // connection was successful
         let mut report = ProbeReport::new(self.identifier());
 
-        match run_sql(&self.sql, &mut client, &mut report) {
+        match run_sql(&self, &mut client, &mut report) {
             Ok(data) => {
                 report.data.extend(data);
                 Ok(report)
@@ -72,8 +74,8 @@ fn establish_connection(probe: &Postgres) -> Result<Client> {
         })
 }
 
-fn run_sql(sql: &Option<SqlTest>, client: &mut Client, report: &mut ProbeReport) -> Result<Data> {
-    match sql {
+fn run_sql(probe: &Postgres, client: &mut Client, report: &mut ProbeReport) -> Result<Data> {
+    match &probe.sql {
         None => Ok(Default::default()),
         Some(sql) => {
             let query_result = client.query(sql.query.as_str(), &[]);
@@ -86,7 +88,11 @@ fn run_sql(sql: &Option<SqlTest>, client: &mut Client, report: &mut ProbeReport)
                         .collect();
                     Ok(data)
                 }
-                Err(_) => Err(AssertionMatchingError(report.clone())),
+                Err(e) => Err(FailedAssertionError {
+                    probe_identifier: probe.identifier(),
+                    desc: "Error execution sql-query!".to_string(),
+                    source: Box::new(e),
+                }),
             }
         }
     }
