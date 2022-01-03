@@ -126,7 +126,7 @@ impl<'a> Display for ReportDisplay<'a, ProbeReport> {
         writeln!(f, "Acquired Data")?;
         if !self.0.data.is_empty() {
             for data in &self.0.data {
-                writeln!(f, "\t{}: {}", data.0, data.1)?;
+                writeln!(f, "\t{}: \n{}", data.0, data.1)?;
             }
         }
         Ok(())
@@ -160,7 +160,7 @@ impl<'a> Display for ErrorDisplay<'a, InquestError> {
                 )?;
             }
             e => {
-                writeln!(f, "Unhandled Error: {:?}", e);
+                writeln!(f, "Unhandled Error: {:?}", e)?;
             }
         }
         Ok(())

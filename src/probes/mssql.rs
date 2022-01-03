@@ -8,6 +8,7 @@ use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 use crate::error::InquestError::{
     AssertionMatchingError, FailedAssertionError, FailedExecutionError,
 };
+use crate::probes::sql::Table;
 use crate::Result;
 use crate::{Data, GlobalOptions, MSSql, Probe, ProbeReport, SqlTest};
 use std::io;
@@ -111,11 +112,13 @@ async fn run_sql(
                 .await
             {
                 Ok(rows) => {
-                    let data: Data = rows
-                        .into_iter()
-                        .enumerate()
-                        .map(|(pos, row)| (pos.to_string(), format!("{:?}", row)))
-                        .collect();
+                    let data: Data = vec![(
+                        "ResultSet".to_string(),
+                        format!(
+                            "{}",
+                            Table::from(rows.first().unwrap_or(Vec::with_capacity(0).as_ref()))
+                        ),
+                    )];
                     report.data.extend(data);
                     Ok(())
                 }
@@ -128,6 +131,64 @@ async fn run_sql(
         }
     }
 }
+
+impl<'set> From<&Vec<tiberius::Row>> for Table {
+    fn from(item: &Vec<tiberius::Row>) -> Self {
+        let columns = item
+            .first()
+            .map(|row| row.columns())
+            .unwrap_or(&[])
+            .iter()
+            .map(|col| col.name().to_string())
+            .collect();
+        let rows = item
+            .iter()
+            .map(|row| {
+                let range = 0..row.len();
+                let mut table_row = Vec::with_capacity(range.len());
+                // FIXME desierialization not working
+                for index in range.step_by(1) {
+                    let x: tiberius::Result<Option<&str>> = row.try_get(index);
+
+                    if let Ok(Some(value)) = x {
+                        table_row.push(value.to_string());
+                    } else {
+                        // deseriali
+                        table_row.push("XXX".to_string());
+                    }
+                }
+                table_row
+            })
+            .collect();
+        Table::new(columns, rows)
+    }
+}
+
+// impl FromSql for String {
+//     fn from_sql(value: &'a ColumnData<'static>) -> tiberius::Result<Option<Self>> {
+//         let string_value = match value {
+//             ColumnData::U8(data) => { data.map(|&raw| String::from_utf8_lossy(raw).to_string()).unwrap_or("".to_string())}
+//             ColumnData::I16(data) => { data.map(|number| String::from(number)).unwrap_or("".to_string())}
+//             ColumnData::I32(data) => {data.map(|number| String::from(number)).unwrap_or("".to_string())}
+//             ColumnData::I64(data) => {data.map(|number| String::from(number)).unwrap_or("".to_string())}
+//             ColumnData::F32(data) => {data.map(|number| String::from(number)).unwrap_or("".to_string())}
+//             ColumnData::F64(data) => {data.map(|number| String::from(number)).unwrap_or("".to_string())}
+//             ColumnData::Bit(data) => {}
+//             ColumnData::String(_) => {"".to_string()}
+//             ColumnData::Guid(_) => {"".to_string()}
+//             ColumnData::Binary(_) => {"".to_string()}
+//             ColumnData::Numeric(_) => {"".to_string()}
+//             ColumnData::Xml(_) => {"".to_string()}
+//             ColumnData::DateTime(_) => {"".to_string()}
+//             ColumnData::SmallDateTime(_) => {"".to_string()}
+//             ColumnData::Time(_) => {"".to_string()}
+//             ColumnData::Date(_) => {"".to_string()}
+//             ColumnData::DateTime2(_) => {"".to_string()}
+//             ColumnData::DateTimeOffset(_) => {"".to_string()}
+//         };
+//         Ok(Some(string_value))
+//     }
+// }
 
 impl ToSocketAddrs for MSSql {
     type Iter = vec::IntoIter<SocketAddr>;

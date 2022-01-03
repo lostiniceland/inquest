@@ -4,6 +4,7 @@ use secrecy::{ExposeSecret, SecretString};
 use crate::error::InquestError::{
     AssertionMatchingError, FailedAssertionError, FailedExecutionError,
 };
+use crate::probes::sql::Table;
 use crate::Result;
 use crate::{Data, GlobalOptions, Postgres, Probe, ProbeReport, SqlTest};
 use std::io;
@@ -67,25 +68,21 @@ fn establish_connection(probe: &Postgres) -> Result<Client> {
         .password(&probe.password.expose_secret())
         .connect_timeout(probe.options.timeout)
         .connect(NoTls)
-        // FIXME why is this mapping needed? There is a FROM in errors.rs
         .map_err(|e| FailedExecutionError {
             probe_identifier: probe.identifier(),
             source: Box::new(e),
         })
 }
 
-fn run_sql(probe: &Postgres, client: &mut Client, report: &mut ProbeReport) -> Result<Data> {
+fn run_sql(probe: &Postgres, client: &mut Client, _: &mut ProbeReport) -> Result<Data> {
     match &probe.sql {
         None => Ok(Default::default()),
         Some(sql) => {
             let query_result = client.query(sql.query.as_str(), &[]);
             match query_result {
                 Ok(rows) => {
-                    let data: Data = rows
-                        .into_iter()
-                        .enumerate()
-                        .map(|(pos, row)| (pos.to_string(), format!("{:?}", row)))
-                        .collect();
+                    let data: Data =
+                        vec![("ResultSet".to_string(), format!("{}", Table::from(rows)))];
                     Ok(data)
                 }
                 Err(e) => Err(FailedAssertionError {
@@ -95,6 +92,39 @@ fn run_sql(probe: &Postgres, client: &mut Client, report: &mut ProbeReport) -> R
                 }),
             }
         }
+    }
+}
+
+impl<'set> From<Vec<postgres::Row>> for Table {
+    fn from(item: Vec<postgres::Row>) -> Self {
+        let columns = item
+            .first()
+            .map(|row| row.columns())
+            .unwrap_or(&[])
+            .iter()
+            .map(|col| col.name().to_string())
+            .collect();
+        let rows = item
+            .iter()
+            .map(|row| {
+                let range = 0..row.len();
+                let mut table_row = Vec::with_capacity(range.len());
+                // FIXME deserialization not working
+                for index in range.step_by(1) {
+                    let x: core::result::Result<Option<&str>, tokio_postgres::Error> =
+                        row.try_get(index);
+
+                    if let Ok(Some(value)) = x {
+                        table_row.push(value.to_string());
+                    } else {
+                        // deseriali
+                        table_row.push("XXX".to_string());
+                    }
+                }
+                table_row
+            })
+            .collect();
+        Table::new(columns, rows)
     }
 }
 

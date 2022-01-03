@@ -1,12 +1,13 @@
-use oracle::Connection;
 use secrecy::{ExposeSecret, SecretString};
 
 use crate::error::InquestError::{
     AssertionMatchingError, FailedAssertionError, FailedExecutionError,
 };
+use crate::probes::sql::Table;
 use crate::probes::tcp::foo;
 use crate::Result;
 use crate::{Data, GlobalOptions, Oracle, Probe, ProbeReport, SqlTest};
+use oracle::{Connection, Row};
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::{io, vec};
 
@@ -66,7 +67,6 @@ fn establish_connection(probe: &Oracle) -> Result<Connection> {
         &probe.password.expose_secret(),
         connection_string.clone(),
     )
-    // FIXME why is this mapping needed? There is a FROM in errors.rs
     .map_err(|e| FailedExecutionError {
         probe_identifier: probe.identifier(),
         source: Box::new(e),
@@ -77,17 +77,15 @@ fn establish_connection(probe: &Oracle) -> Result<Connection> {
     r
 }
 
-fn run_sql(probe: &Oracle, connection: &Connection, report: &ProbeReport) -> Result<Data> {
+fn run_sql(probe: &Oracle, connection: &Connection, _: &ProbeReport) -> Result<Data> {
     match &probe.sql {
         None => Ok(Default::default()),
         Some(sql) => {
             let query_result = connection.query(&sql.query, &[]);
             match query_result {
                 Ok(rows) => {
-                    let data: Data = rows
-                        .enumerate()
-                        .map(|(pos, row)| (pos.to_string(), format!("{:?}", row.unwrap())))
-                        .collect();
+                    let data: Data =
+                        vec![("ResultSet".to_string(), format!("{}", Table::from(rows)))];
                     Ok(data)
                 }
                 Err(e) => Err(FailedAssertionError {
@@ -97,6 +95,26 @@ fn run_sql(probe: &Oracle, connection: &Connection, report: &ProbeReport) -> Res
                 }),
             }
         }
+    }
+}
+
+impl<'set> From<oracle::ResultSet<'_, Row>> for Table {
+    fn from(item: oracle::ResultSet<Row>) -> Self {
+        let columns: Vec<_> = item
+            .column_info()
+            .iter()
+            .map(|column| column.name().to_string())
+            .collect();
+        let rows: Vec<Vec<_>> = item
+            .filter_map(|res| res.ok())
+            .map(|row| {
+                row.sql_values()
+                    .into_iter()
+                    .map(|sql_value| sql_value.to_string())
+                    .collect()
+            })
+            .collect();
+        Table::new(columns, rows)
     }
 }
 
