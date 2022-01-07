@@ -40,7 +40,7 @@ jobs:
       - name: "Startup Databases via Docker"
         run: docker-compose up -d
 
-      - name: "Prepare Oracle-Schema For Tests"
+      - name: "Prepare Schemas For Tests"
         run: |
           sudo apt install -qq -o=Dpkg::Use-Pty=0 unzip openjdk-11-jdk
           curl -o /tmp/sqlcl.zip https://download.oracle.com/otn_software/java/sqldeveloper/sqlcl-21.1.1.113.1704.zip

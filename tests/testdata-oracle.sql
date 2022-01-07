@@ -1,0 +1,62 @@
+CREATE TABLE testdata (
+    some_smallint SMALLINT,
+    some_int INT,
+    some_integer INTEGER,
+    some_date DATE,
+    some_timestamp TIMESTAMP(2),
+    some_float FLOAT,
+    some_double DOUBLE PRECISION,
+    some_decimal DECIMAL,
+    some_numeric NUMERIC,
+    some_char CHAR,
+    some_character CHARACTER(10),
+    some_nchar NCHAR(2),
+    some_varchar VARCHAR(100),
+    some_varchar2 VARCHAR2(100),
+    some_clob CLOB,
+    some_blob BLOB,
+    some_binary_float BINARY_FLOAT,
+    some_binary_double BINARY_DOUBLE
+);
+
+INSERT INTO testdata (
+    some_smallint,
+    some_int,
+    some_integer,
+    some_date,
+    some_timestamp,
+    some_float,
+    some_double,
+    some_decimal,
+    some_numeric,
+    some_char,
+    some_character,
+    some_nchar,
+    some_varchar,
+    some_varchar2,
+    some_clob,
+    some_blob,
+    some_binary_float,
+    some_binary_double
+) VALUES (
+          1,
+          1,
+          1,
+          CURRENT_DATE,
+          CURRENT_DATE,
+          (select cast(1 as float) / cast(3 as float) from dual),
+          (select cast(2 as double precision) / cast(3 as double precision) from dual),
+          10,
+          10,
+          'c',
+          'ch',
+          'cn',
+          'varchar',
+          'varchar2',
+          to_clob('some big text'),
+          utl_raw.cast_to_raw('some big binary'),
+          null,
+          null
+);
+
+commit;

@@ -21,7 +21,7 @@ impl<'set> Table {
                 .map(|row| row.get(column_index).map(|v| v.len()))
                 .flatten()
                 .max()
-                .unwrap();
+                .unwrap_or(0);
             column_sizes.push(max(
                 max_column_length,
                 columns

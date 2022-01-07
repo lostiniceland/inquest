@@ -1,6 +1,6 @@
 use secrecy::{ExposeSecret, SecretString};
 use tiberius::error::Error;
-use tiberius::{AuthMethod, Client, Config};
+use tiberius::{AuthMethod, Client, ColumnData, Config};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
@@ -11,6 +11,7 @@ use crate::error::InquestError::{
 use crate::probes::sql::Table;
 use crate::Result;
 use crate::{Data, GlobalOptions, MSSql, Probe, ProbeReport, SqlTest};
+use chrono::{DateTime, NaiveDateTime, NaiveTime, Utc};
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::vec;
@@ -111,13 +112,10 @@ async fn run_sql(
                 .into_results()
                 .await
             {
-                Ok(rows) => {
+                Ok(mut rows) => {
                     let data: Data = vec![(
                         "ResultSet".to_string(),
-                        format!(
-                            "{}",
-                            Table::from(rows.first().unwrap_or(Vec::with_capacity(0).as_ref()))
-                        ),
+                        format!("{}", Table::from(rows.remove(0))), // first vec is the query (could be multiple)
                     )];
                     report.data.extend(data);
                     Ok(())
@@ -132,8 +130,31 @@ async fn run_sql(
     }
 }
 
-impl<'set> From<&Vec<tiberius::Row>> for Table {
-    fn from(item: &Vec<tiberius::Row>) -> Self {
+impl<'set> From<Vec<tiberius::Row>> for Table {
+    fn from(item: Vec<tiberius::Row>) -> Self {
+        // inlines copied from tiberius::tds:time::chrono
+        #[inline]
+        fn from_days(days: i64, start_year: i32) -> chrono::NaiveDate {
+            chrono::NaiveDate::from_ymd(start_year, 1, 1) + chrono::Duration::days(days as i64)
+        }
+
+        #[inline]
+        fn from_sec_fragments(sec_fragments: i64) -> chrono::NaiveTime {
+            chrono::NaiveTime::from_hms(0, 0, 0)
+                + chrono::Duration::nanoseconds(sec_fragments * (1e9 as i64) / 300)
+        }
+
+        #[inline]
+        fn from_mins(mins: u32) -> chrono::NaiveTime {
+            chrono::NaiveTime::from_num_seconds_from_midnight(mins, 0)
+        }
+
+        // #[inline]
+        // fn to_days(date: chrono::NaiveDate, start_year: i32) -> i64 {
+        //     date.signed_duration_since(chrono::NaiveDate::from_ymd(start_year, 1, 1))
+        //         .num_days()
+        // }
+
         let columns = item
             .first()
             .map(|row| row.columns())
@@ -141,54 +162,93 @@ impl<'set> From<&Vec<tiberius::Row>> for Table {
             .iter()
             .map(|col| col.name().to_string())
             .collect();
-        let rows = item
-            .iter()
-            .map(|row| {
-                let range = 0..row.len();
-                let mut table_row = Vec::with_capacity(range.len());
-                // FIXME desierialization not working
-                for index in range.step_by(1) {
-                    let x: tiberius::Result<Option<&str>> = row.try_get(index);
+        let mut my_rows = Vec::with_capacity(item.len());
 
-                    if let Ok(Some(value)) = x {
-                        table_row.push(value.to_string());
-                    } else {
-                        // deseriali
-                        table_row.push("XXX".to_string());
-                    }
-                }
-                table_row
-            })
-            .collect();
-        Table::new(columns, rows)
+        for row in item {
+            let mut table_row = Vec::with_capacity(20);
+
+            for item in row.into_iter() {
+                let value = match item {
+                    ColumnData::Binary(_val) => "<binary data>".into(),
+                    ColumnData::Bit(val) => val.unwrap_or_default().to_string(),
+                    ColumnData::F32(val) => val.unwrap_or_default().to_string(),
+                    ColumnData::F64(val) => val.unwrap_or_default().to_string(),
+                    ColumnData::Guid(val) => val.unwrap_or_default().to_string(),
+                    ColumnData::I16(val) => val.unwrap_or_default().to_string(),
+                    ColumnData::I32(val) => val.unwrap_or_default().to_string(),
+                    ColumnData::I64(val) => val.unwrap_or_default().to_string(),
+                    ColumnData::Numeric(val) => val.unwrap().to_string(),
+                    ColumnData::String(val) => val.unwrap_or_default().as_ref().into(),
+                    ColumnData::U8(val) => val.unwrap_or_default().to_string(),
+                    ColumnData::Xml(val) => val.unwrap().as_ref().to_string(),
+                    ColumnData::Date(ref val) => val
+                        .map(|date| {
+                            let date = from_days(date.days() as i64, 1);
+                            date.format("%Y-%m-%d").to_string()
+                        })
+                        .unwrap_or_default(),
+                    ColumnData::DateTime(ref val) => val
+                        .map(|dt| {
+                            let datetime = NaiveDateTime::new(
+                                from_days(dt.days() as i64, 1900),
+                                from_sec_fragments(dt.seconds_fragments() as i64),
+                            );
+                            datetime.format("%Y-%m-%d %H:%M:%S").to_string()
+                        })
+                        .unwrap_or_default(),
+                    ColumnData::DateTime2(ref val) => val
+                        .map(|dt| {
+                            let datetime = NaiveDateTime::new(
+                                from_days(dt.date().days() as i64, 1),
+                                NaiveTime::from_hms(0, 0, 0)
+                                    + chrono::Duration::nanoseconds(
+                                        dt.time().increments() as i64
+                                            * 10i64.pow(9 - dt.time().scale() as u32),
+                                    ),
+                            );
+                            datetime.format("%Y-%m-%d %H:%M:%S").to_string()
+                        })
+                        .unwrap_or_default(),
+                    ColumnData::DateTimeOffset(ref val) => val
+                        .map(|dto| {
+                            let date = from_days(dto.datetime2().date().days() as i64, 1);
+                            let ns = dto.datetime2().time().increments() as i64
+                                * 10i64.pow(9 - dto.datetime2().time().scale() as u32);
+
+                            let time = NaiveTime::from_hms(0, 0, 0)
+                                + chrono::Duration::nanoseconds(ns)
+                                - chrono::Duration::minutes(dto.offset() as i64);
+                            let naive = NaiveDateTime::new(date, time);
+
+                            let dto: DateTime<Utc> = chrono::DateTime::from_utc(naive, Utc);
+                            dto.format("%Y-%m-%d %H:%M:%S %z").to_string()
+                        })
+                        .unwrap_or_default(),
+                    ColumnData::SmallDateTime(ref val) => val
+                        .map(|dt| {
+                            let datetime = NaiveDateTime::new(
+                                from_days(dt.days() as i64, 1900),
+                                from_mins(dt.seconds_fragments() as u32 * 60),
+                            );
+                            datetime.format("%Y-%m-%d %H:%M:%S").to_string()
+                        })
+                        .unwrap_or_default(),
+                    ColumnData::Time(ref val) => val
+                        .map(|time| {
+                            let ns = time.increments() as i64 * 10i64.pow(9 - time.scale() as u32);
+                            let time =
+                                NaiveTime::from_hms(0, 0, 0) + chrono::Duration::nanoseconds(ns);
+                            format!("{}", time.format("%H:%M:%S"))
+                        })
+                        .unwrap_or_default(),
+                };
+                table_row.push(value);
+            }
+            my_rows.push(table_row);
+        }
+        Table::new(columns, my_rows)
     }
 }
-
-// impl FromSql for String {
-//     fn from_sql(value: &'a ColumnData<'static>) -> tiberius::Result<Option<Self>> {
-//         let string_value = match value {
-//             ColumnData::U8(data) => { data.map(|&raw| String::from_utf8_lossy(raw).to_string()).unwrap_or("".to_string())}
-//             ColumnData::I16(data) => { data.map(|number| String::from(number)).unwrap_or("".to_string())}
-//             ColumnData::I32(data) => {data.map(|number| String::from(number)).unwrap_or("".to_string())}
-//             ColumnData::I64(data) => {data.map(|number| String::from(number)).unwrap_or("".to_string())}
-//             ColumnData::F32(data) => {data.map(|number| String::from(number)).unwrap_or("".to_string())}
-//             ColumnData::F64(data) => {data.map(|number| String::from(number)).unwrap_or("".to_string())}
-//             ColumnData::Bit(data) => {}
-//             ColumnData::String(_) => {"".to_string()}
-//             ColumnData::Guid(_) => {"".to_string()}
-//             ColumnData::Binary(_) => {"".to_string()}
-//             ColumnData::Numeric(_) => {"".to_string()}
-//             ColumnData::Xml(_) => {"".to_string()}
-//             ColumnData::DateTime(_) => {"".to_string()}
-//             ColumnData::SmallDateTime(_) => {"".to_string()}
-//             ColumnData::Time(_) => {"".to_string()}
-//             ColumnData::Date(_) => {"".to_string()}
-//             ColumnData::DateTime2(_) => {"".to_string()}
-//             ColumnData::DateTimeOffset(_) => {"".to_string()}
-//         };
-//         Ok(Some(string_value))
-//     }
-// }
 
 impl ToSocketAddrs for MSSql {
     type Iter = vec::IntoIter<SocketAddr>;
