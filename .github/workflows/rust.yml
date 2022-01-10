@@ -37,6 +37,18 @@ jobs:
           sudo apt install -qq -o=Dpkg::Use-Pty=0 alien libaio1
           sudo alien -i /tmp/oracle-client.rpm
 
+      - name: "Install Postgres Client"
+        run: |
+          sudo apt-get install postgresql-client
+
+      - name: "Install MSSQL Client"
+        run: |
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+          curl https://packages.microsoft.com/config/ubuntu/20.04/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
+          sudo apt-get update 
+          sudo apt-get install mssql-tools unixodbc-dev
+          echo 'export PATH="$PATH:/opt/mssql-tools/bin"' >> ~/.bashrc
+
       - name: "Startup Databases via Docker"
         run: docker-compose up -d
 
