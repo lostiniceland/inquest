@@ -24,3 +24,31 @@ services:
     ports:
       - "1521:1521"
 
+  testdata-setup:
+    image: opensuse/leap:15.4
+    volumes:
+      - ./testdata:/testdata
+    links:
+      - postgres
+      - mssql
+      - oracle
+    command: >
+      bash -c "
+      zypper --non-interactive install --auto-agree-with-licenses -y curl unzip postgresql python-pip libicu-devel
+      && pip install mssql-cli
+      && curl -s -o /tmp/oracle-client.rpm https://download.oracle.com/otn_software/linux/instantclient/oracle-instantclient-basic-linuxx64.rpm
+      && curl -s -o /tmp/oracle-sqlplus.rpm https://download.oracle.com/otn_software/linux/instantclient/oracle-instantclient-sqlplus-linuxx64.rpm
+      && zypper --no-gpg-checks install --auto-agree-with-licenses -y /tmp/oracle-client.rpm
+      && zypper --no-gpg-checks install --auto-agree-with-licenses -y /tmp/oracle-sqlplus.rpm
+      && cd /testdata
+      && echo Prepare Postgres Testdata
+      && psql postgresql://admin:changeit@postgres:5432/test -a -f testdata-postgres.sql
+      && echo Prepare Oracle User
+      && sqlplus sys/Oracle18@oracle:1521/XEPDB1 as sysdba @oracle_init-schema.sql test changeit
+      && echo Prepare Oracle Testdata
+      && sqlplus test/changeit@oracle:1521/XEPDB1 @testdata-oracle.sql
+      && echo Prepare SQL Server Testdata
+      && mssql-cli -S mssql -U SA -P 'changeit_C8' -i ./testdata-mssql.sql
+      "
+
+
