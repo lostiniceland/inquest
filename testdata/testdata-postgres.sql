@@ -19,7 +19,14 @@ CREATE TABLE testdata (
     some_real real,
     some_double double precision,
     some_timestamp timestamp,
-    some_timestamptz timestamptz
+    some_timestamptz timestamptz,
+    some_macaddress macaddr,
+    some_inet inet,
+    some_time time,
+    some_date date,
+    some_geo_point point,
+    some_geo_box box,
+    some_geo_path path
 --  for now enough
 );
 
@@ -41,7 +48,14 @@ INSERT INTO testdata (
     some_real,
     some_double,
     some_timestamp,
-    some_timestamptz
+    some_timestamptz,
+    some_macaddress,
+    some_inet,
+    some_time,
+    some_date,
+    some_geo_point,
+    some_geo_box,
+    some_geo_path
 ) VALUES (
     B'101',
     true,
@@ -60,6 +74,18 @@ INSERT INTO testdata (
     div(2,3),
     div(2,3),
     current_timestamp,
-    current_timestamp);
+    current_timestamp,
+    macaddr('08:00:2b:01:02:03'),
+    inet_client_addr(),
+    current_time,
+    date(current_timestamp),
+    point(2, 3),
+    box(circle(point(1,1), 2.0)),
+    path(
+            '(15.878137629895164,47.08306448089695),
+             (15.56169808311181,47.219041634920686),
+             (15.267442604782124,47.4201665137259)'
+        )
+);
 
 INSERT INTO testdata DEFAULT VALUES;

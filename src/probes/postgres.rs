@@ -9,7 +9,7 @@ use crate::Result;
 use crate::{Data, GlobalOptions, Postgres, Probe, ProbeReport, SqlTest};
 use chrono::Utc;
 use std::io;
-use std::net::{SocketAddr, ToSocketAddrs};
+use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
 use std::vec;
 
 const PROBE_NAME: &'static str = "Postgres";
@@ -103,11 +103,8 @@ impl<'set> From<Vec<postgres::Row>> for Table {
         /// This function matches over the current column-type and does a manual conversion
         fn reflective_get(row: &postgres::Row, index: usize) -> String {
             let column_type = row.columns().get(index).map(|c| c.type_().name()).unwrap();
-            // see https://docs.rs/sqlx/0.4.0-beta.1/sqlx/postgres/types/index.html
+            // see https://docs.rs/postgres/latest/postgres/types/trait.ToSql.html
             let value = match column_type {
-                // "bit" => {
-                //     TODO
-                // }
                 "bool" => {
                     let v: Option<bool> = row.get(index);
                     v.map(|v| v.to_string())
@@ -145,10 +142,74 @@ impl<'set> From<Vec<postgres::Row>> for Table {
                     let v: Option<chrono::NaiveDateTime> = row.get(index);
                     v.map(|v| v.to_string())
                 }
-                "timestamptz" => {
+                "timestamptz" | "timestamp with time zone" => {
                     // with-chrono feature is needed for this
                     let v: Option<chrono::DateTime<Utc>> = row.get(index);
                     v.map(|v| v.to_string())
+                }
+                "time" => {
+                    // with-time feature is needed for this
+                    let v: Option<time::Time> = row.get(index);
+                    v.map(|v| v.to_string())
+                }
+                "date" => {
+                    // with-time feature is needed for this
+                    let v: Option<time::Date> = row.get(index);
+                    v.map(|v| v.to_string())
+                }
+                "bit" | "varbit" => {
+                    // with-bit-vec feature is needed for this
+                    let v: Option<bit_vec::BitVec> = row.get(index);
+                    v.map(|v| {
+                        v.iter().enumerate().fold(String::new(), |a, b| {
+                            a + format!("Bit {}: {}; ", b.0 + 1, b.1).as_str()
+                        })
+                    })
+                }
+                "uuid" => {
+                    // with-uuid feature is needed for this
+                    let v: Option<uuid::Uuid> = row.get(index);
+                    v.map(|v| v.to_string())
+                }
+                "inet" => {
+                    // with-eui48 feature is needed for this
+                    let v: Option<IpAddr> = row.get(index);
+                    v.map(|v| v.to_string())
+                }
+                "macaddr" => {
+                    // with-eui48 feature is needed for this
+                    let v: Option<eui48::MacAddress> = row.get(index);
+                    v.map(|v| v.to_string(eui48::MacAddressFormat::Canonical))
+                }
+                "point" => {
+                    // with-geo feature is needed for this
+                    let v: Option<geo_types::Point<f64>> = row.get(index);
+                    v.map(|v| format!("x={} y={}", v.0.x, v.0.y))
+                }
+                "box" => {
+                    // with-geo feature is needed for this
+                    let v: Option<geo_types::Rect<f64>> = row.get(index);
+                    v.map(|v| {
+                        format!(
+                            "x1={} y1={} x2={} y2={}",
+                            v.min().x,
+                            v.min().y,
+                            v.max().x,
+                            v.max().y
+                        )
+                    })
+                }
+                "path" => {
+                    // with-geo feature is needed for this
+                    let v: Option<geo_types::LineString<f64>> = row.get(index);
+                    v.map(|v| {
+                        v.into_iter()
+                            .map(|coord| format!("x={} y={}", coord.x, coord.y))
+                            .enumerate()
+                            .fold(String::new(), |a, b| {
+                                a + format!("Coordinate {}: {}; ", b.0 + 1, b.1).as_str()
+                            })
+                    })
                 }
                 &_ => Some(format!("CANNOT PARSE '{}'", column_type)),
             };
