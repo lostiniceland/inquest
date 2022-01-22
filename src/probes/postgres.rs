@@ -233,18 +233,7 @@ impl<'set> From<Vec<postgres::Row>> for Table {
             .map(|row| {
                 let range = 0..row.len();
                 let mut table_row = Vec::with_capacity(range.len());
-                // FIXME deserialization not working
                 for index in range.step_by(1) {
-                    // let x: core::result::Result<Option<&str>, tokio_postgres::Error> =
-                    //     row.try_get(index);
-                    //
-                    // if let Ok(Some(value)) = x {
-                    //     table_row.push(value.to_string());
-                    // } else {
-                    //     table_row.push("XXX".to_string());
-                    // }
-                    // let x: Vec<u8> = row.get(index);
-                    // table_row.push(String::from_utf8_lossy(x.as_slice()).to_string());
                     table_row.push(reflective_get(&row, index));
                 }
                 table_row
