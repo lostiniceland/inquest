@@ -26,7 +26,8 @@ CREATE TABLE testdata (
     some_date date,
     some_geo_point point,
     some_geo_box box,
-    some_geo_path path
+    some_geo_path path,
+    some_json json
 --  for now enough
 );
 
@@ -55,7 +56,8 @@ INSERT INTO testdata (
     some_date,
     some_geo_point,
     some_geo_box,
-    some_geo_path
+    some_geo_path,
+    some_json
 ) VALUES (
     B'101',
     true,
@@ -85,7 +87,8 @@ INSERT INTO testdata (
             '(15.878137629895164,47.08306448089695),
              (15.56169808311181,47.219041634920686),
              (15.267442604782124,47.4201665137259)'
-        )
+        ),
+    '{ "customer": "John Doe", "items": {"product": "Beer","qty": 6}}'
 );
 
 INSERT INTO testdata DEFAULT VALUES;

@@ -211,6 +211,11 @@ impl<'set> From<Vec<postgres::Row>> for Table {
                             })
                     })
                 }
+                "json" => {
+                    // with-serde-json feature is needed for this
+                    let v: Option<serde_json::Value> = row.get(index);
+                    v.map(|v| v.to_string())
+                }
                 &_ => Some(format!("CANNOT PARSE '{}'", column_type)),
             };
             value.unwrap_or("".to_string())

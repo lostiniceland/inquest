@@ -1046,6 +1046,7 @@ dependencies = [
  "postgres",
  "reqwest",
  "secrecy",
+ "serde_json",
  "stderrlog",
  "term",
  "thiserror",
@@ -1439,6 +1440,8 @@ dependencies = [
  "fallible-iterator",
  "geo-types",
  "postgres-protocol",
+ "serde",
+ "serde_json",
  "time 0.3.6",
  "uuid",
 ]
