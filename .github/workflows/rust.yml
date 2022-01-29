@@ -37,12 +37,23 @@ jobs:
           sudo apt-get install -qq -o=Dpkg::Use-Pty=0 alien libaio1
           sudo alien -i /tmp/oracle-client.rpm
 
+      - name: "Prepare Certificates"
+        run: |
+          cd docker/certs
+          ./generate-ca.sh
+          ./generate-signed-cert.sh server
+          ./generate-signed-cert.sh client
+
       - name: "Startup Databases via Docker"
-        run: docker-compose up -d
+        run: |
+          cd docker
+          DOCKER_BUILDKIT=1 docker-compose up -d
 
       - name: "Run Integration-Tests"
         run: sleep 90 && cargo test --test integration --verbose
 
       - name: "Check Container Logs"
         if: failure()
-        run: docker-compose logs
+        run: |
+          cd docker
+          docker-compose logs

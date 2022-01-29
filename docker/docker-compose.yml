@@ -1,16 +1,21 @@
 version: '3.2'
 services:
   postgres:
-    image: postgres
+    build:
+      dockerfile: postgres.dockerfile
+      context: .
     ports:
       - "5432:5432"
     environment:
       POSTGRES_USER: "admin"
       POSTGRES_PASSWORD: "changeit"
       POSTGRES_DB: "test"
+    command: "postgres -c config_file=/etc/postgresql/postgresql.conf"
 
   mssql:
-    image: mcr.microsoft.com/mssql/server
+    build:
+      dockerfile: mssql.dockerfile
+      context: .
     ports:
       - "1433:1433"
     environment:
@@ -27,7 +32,7 @@ services:
   testdata-setup:
     image: opensuse/leap:15.4
     volumes:
-      - ./testdata:/testdata
+      - ./../testdata:/testdata
     links:
       - postgres
       - mssql
