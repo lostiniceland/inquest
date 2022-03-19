@@ -68,6 +68,14 @@ pub(crate) struct GlobalOptions {
     pub(crate) timeout: Duration,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct Certificates {
+    pub(crate) clientCert: String,
+    pub(crate) clientKey: String,
+    pub(crate) clientPem: Option<String>,
+    pub(crate) caCert: Option<String>,
+}
+
 /// Configuration options for a HTTP probe
 #[derive(Debug)]
 pub(crate) struct Http {
@@ -75,6 +83,7 @@ pub(crate) struct Http {
     pub(crate) url: Url,
     pub(crate) status: u16,
     pub(crate) name: Option<String>,
+    pub(crate) certs: Option<Certificates>,
 }
 
 /// Configuration options for a probe targeting a Postgres database
@@ -87,6 +96,7 @@ pub(crate) struct Postgres {
     pub(crate) database: String,
     pub(crate) password: SecretString,
     pub(crate) sql: Option<SqlTest>,
+    pub(crate) certs: Option<Certificates>,
 }
 
 /// Configuration options for a probe targeting a Oracle database
@@ -110,6 +120,23 @@ pub(crate) struct MSSql {
     pub(crate) user: String,
     pub(crate) password: SecretString,
     pub(crate) sql: Option<SqlTest>,
+    pub(crate) certs: Option<Certificates>,
+}
+
+impl Certificates {
+    pub(crate) fn new(
+        clientCert: String,
+        clientKey: String,
+        clientPem: Option<String>,
+        caCert: Option<String>,
+    ) -> Certificates {
+        Certificates {
+            clientCert,
+            clientKey,
+            clientPem,
+            caCert,
+        }
+    }
 }
 
 impl Config {

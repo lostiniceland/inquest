@@ -12,7 +12,7 @@ static INIT: Once = Once::new();
 
 fn setup() {
     INIT.call_once(|| {
-        stderrlog::new().verbosity(2).quiet(false).init().unwrap();
+        stderrlog::new().verbosity(3).quiet(false).init().unwrap();
     });
 }
 
@@ -21,9 +21,12 @@ fn run_http_probe() {
     setup();
     let result = run_from_config(Path::new("tests/integration-http.conf"));
     assert!(result.is_ok());
-    assert_matches!(result.unwrap().0.as_slice(), [report1, report2] => {
+    let reports = result.unwrap();
+    assert_matches!(reports.1.as_slice(), []);
+    assert_matches!(reports.0.as_slice(), [report1, report2, report3] => {
         assert_eq!(report1.probe_identifier.as_str(), "HTTP - https://httpbin.org/get");
         assert_eq!(report2.probe_identifier.as_str(), "HTTP - https://httpbin.org/status/201");
+        assert_eq!(report3.probe_identifier.as_str(), "HTTP - https://localhost:8443/index.html");
     });
 }
 
@@ -43,7 +46,9 @@ fn run_postgres_probe() {
     setup();
     let result = run_from_config(Path::new("tests/integration-postgres.conf"));
     assert!(result.is_ok());
-    assert_matches!(result.unwrap().0.as_slice(), [report] => {
+    let reports = result.unwrap();
+    assert_matches!(reports.1.as_slice(), []);
+    assert_matches!(reports.0.as_slice(), [report] => {
         assert_eq!(report.probe_identifier.as_str(), "Postgres - localhost:5432/test/admin");
     });
 }
@@ -53,7 +58,9 @@ fn run_oracle_probe() {
     setup();
     let result = run_from_config(Path::new("tests/integration-oracle.conf"));
     assert!(result.is_ok());
-    assert_matches!(result.unwrap().0.as_slice(), [report] => {
+    let reports = result.unwrap();
+    assert_matches!(reports.1.as_slice(), []);
+    assert_matches!(reports.0.as_slice(), [report] => {
         assert_eq!(report.probe_identifier.as_str(), "Oracle - localhost:1521/XEPDB1/test");
     });
 }
@@ -63,7 +70,9 @@ fn run_mssql_probe() {
     setup();
     let result = run_from_config(Path::new("tests/integration-mssql.conf"));
     assert!(result.is_ok());
-    assert_matches!(result.unwrap().0.as_slice(), [report] => {
+    let reports = result.unwrap();
+    assert_matches!(reports.1.as_slice(), []);
+    assert_matches!(reports.0.as_slice(), [report] => {
         assert_eq!(report.probe_identifier.as_str(), "MSSql - localhost:1433/SA");
     });
 }

@@ -2,14 +2,14 @@ use hocon::Hocon;
 use url::Url;
 
 use crate::error::InquestError;
-use crate::{Config, Http};
+use crate::{Certificates, Config, Http};
 use crate::{Result, GO};
 
-pub(crate) fn parse_http(hocon: &Hocon) -> Result<Vec<Config>> {
+pub(crate) fn parse_http(hocon: &Hocon, certs: Option<Certificates>) -> Result<Vec<Config>> {
     if let Hocon::Array(http_specs) = &hocon {
         Ok(http_specs
             .into_iter()
-            .flat_map(|hocon| parse_get(hocon))
+            .flat_map(|hocon| parse_get(hocon, certs.clone()))
             .map(|parsed| parsed.into())
             .collect())
     } else {
@@ -17,13 +17,19 @@ pub(crate) fn parse_http(hocon: &Hocon) -> Result<Vec<Config>> {
     }
 }
 
-fn parse_get(hocon: &Hocon) -> Result<Http> {
+fn parse_get(hocon: &Hocon, certs: Option<Certificates>) -> Result<Http> {
     let url = hocon["url"]
         .as_string()
         .ok_or(InquestError::ConfigurationError)?;
     let status = hocon["status"].as_i64().map(|number| number as u16);
     let name = hocon["name"].as_string();
-    Ok(Http::new(Url::parse(url.as_str())?, status, name, &GO))
+    Ok(Http::new(
+        Url::parse(url.as_str())?,
+        status,
+        name,
+        &GO,
+        certs,
+    ))
 }
 
 #[cfg(test)]

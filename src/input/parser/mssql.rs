@@ -3,19 +3,23 @@ use secrecy::SecretString;
 
 use crate::error::InquestError;
 use crate::input::parser::parse_sql;
-use crate::{Config, MSSql};
+use crate::{Certificates, Config, MSSql};
 use crate::{Result, GO};
 
-pub(crate) fn parse_mssql(hocon: &Hocon) -> Result<Vec<Config>> {
+pub(crate) fn parse_mssql(hocon: &Hocon, certs: Option<Certificates>) -> Result<Vec<Config>> {
     if let Hocon::Array(mssqls) = &hocon {
-        Ok(mssqls.into_iter().map(|x| parse(x)).flatten().collect())
+        Ok(mssqls
+            .into_iter()
+            .map(|x| parse(x, certs.clone()))
+            .flatten()
+            .collect())
     } else {
         Err(InquestError::ConfigurationError)
     }
 }
 
 // FIXME improve error handling on missing configs
-fn parse(hocon: &Hocon) -> Result<Config> {
+fn parse(hocon: &Hocon, certs: Option<Certificates>) -> Result<Config> {
     let host = hocon["host"].as_string();
     let port = hocon["port"].as_i64().map(|port| port as u16);
     let user = hocon["user"]
@@ -27,7 +31,7 @@ fn parse(hocon: &Hocon) -> Result<Config> {
             .ok_or(InquestError::ConfigurationError)?,
     );
     let sql = parse_sql(&hocon)?;
-    Ok(MSSql::new(host, port, user, password, sql, &GO).into())
+    Ok(MSSql::new(host, port, user, password, sql, &GO, certs).into())
 }
 
 #[cfg(test)]

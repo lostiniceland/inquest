@@ -3,19 +3,23 @@ use secrecy::SecretString;
 
 use crate::error::InquestError;
 use crate::input::parser::parse_sql;
-use crate::{Config, Postgres};
+use crate::{Certificates, Config, Postgres};
 use crate::{Result, GO};
 
-pub(crate) fn parse_postgres(hocon: &Hocon) -> Result<Vec<Config>> {
+pub(crate) fn parse_postgres(hocon: &Hocon, certs: Option<Certificates>) -> Result<Vec<Config>> {
     if let Hocon::Array(oracles) = &hocon {
-        Ok(oracles.into_iter().map(|x| parse(x)).flatten().collect())
+        Ok(oracles
+            .into_iter()
+            .map(|x| parse(x, certs.clone()))
+            .flatten()
+            .collect())
     } else {
         Err(InquestError::ConfigurationError)
     }
 }
 
 // FIXME improve error handling on missing configs
-fn parse(hocon: &Hocon) -> Result<Config> {
+fn parse(hocon: &Hocon, certs: Option<Certificates>) -> Result<Config> {
     let host = hocon["host"].as_string();
     let port = hocon["port"].as_i64().map(|port| port as u16);
     let database = hocon["database"].as_string();
@@ -28,7 +32,7 @@ fn parse(hocon: &Hocon) -> Result<Config> {
             .ok_or(InquestError::ConfigurationError)?,
     );
     let sql = parse_sql(&hocon)?;
-    Ok(Postgres::new(host, port, database, user, password, sql, &GO).into())
+    Ok(Postgres::new(host, port, database, user, password, sql, &GO, certs).into())
 }
 
 #[cfg(test)]

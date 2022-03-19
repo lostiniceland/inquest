@@ -2,4 +2,6 @@
 *.pem
 *.key
 *.sr
+*.srl
 src.txt
+

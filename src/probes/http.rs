@@ -1,11 +1,13 @@
 use reqwest::blocking::*;
-use reqwest::StatusCode;
+use reqwest::{Certificate, Identity, StatusCode};
+use std::fs::File;
 use url::Url;
 
 use crate::error::InquestError::{AssertionMatchingError, FailedExecutionError};
-use crate::Result;
+use crate::{Certificates, Result};
 use crate::{GlobalOptions, Http, Probe, ProbeReport};
 use std::io;
+use std::io::Read;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::vec;
 
@@ -17,25 +19,47 @@ impl Http {
         status: Option<u16>,
         name: Option<String>,
         options: &'static GlobalOptions,
+        certs: Option<Certificates>,
     ) -> Http {
         Http {
             options,
             url,
             status: status.unwrap_or(200),
             name,
+            certs,
         }
     }
 }
 
 impl Probe for Http {
     fn execute<'a>(&self) -> Result<ProbeReport> {
-        let client = Client::builder().timeout(self.options.timeout).build()?;
+        let client = build_client(self)?;
         validate_result(client.get(self.url.as_str()).send(), self)
     }
-
     fn identifier(&self) -> String {
         format!("{} - {}", PROBE_NAME, self.url.to_string())
     }
+}
+
+fn build_client(config: &Http) -> Result<Client> {
+    let mut cb = Client::builder();
+    cb = cb.timeout(config.options.timeout);
+    if let Some(certOption) = &config.certs {
+        cb = cb.use_rustls_tls(); // important, otherwise certs not working
+                                  // Add CA-Cert if available
+        if let Some(cacert) = &certOption.caCert {
+            let mut buf = Vec::new();
+            File::open(cacert)?.read_to_end(&mut buf)?;
+            cb = cb.add_root_certificate(Certificate::from_pem(&buf)?);
+        }
+        // Add Client-Cert if available
+        if let Some(client_pem) = &certOption.clientPem {
+            let mut buf = Vec::new();
+            File::open(client_pem)?.read_to_end(&mut buf)?;
+            cb = cb.identity(Identity::from_pem(&buf)?);
+        }
+    }
+    Ok(cb.build()?)
 }
 
 fn validate_result(call_result: reqwest::Result<Response>, config: &Http) -> Result<ProbeReport> {
@@ -93,7 +117,13 @@ mod tests {
 
     #[test]
     fn probe_uses_documented_defaults() {
-        let probe = Http::new(Url::parse("http://www.foo.bar").unwrap(), None, None, &GO);
+        let probe = Http::new(
+            Url::parse("http://www.foo.bar").unwrap(),
+            None,
+            None,
+            &GO,
+            None,
+        );
 
         assert_eq!(200, probe.status);
     }

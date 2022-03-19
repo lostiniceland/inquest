@@ -1031,6 +1031,7 @@ dependencies = [
  "aes",
  "anyhow",
  "assert_matches",
+ "async-native-tls",
  "async-std",
  "base64",
  "bigdecimal",
@@ -1045,6 +1046,7 @@ dependencies = [
  "oracle",
  "postgres",
  "reqwest",
+ "rustls",
  "secrecy",
  "serde_json",
  "stderrlog",
@@ -1054,6 +1056,7 @@ dependencies = [
  "time 0.3.6",
  "tokio",
  "tokio-postgres",
+ "tokio-postgres-rustls",
  "tokio-util",
  "url",
  "uuid",
@@ -1252,6 +1255,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 
 [[package]]
+name = "openssl-src"
+version = "111.17.0+1.1.1m"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05d6a336abd10814198f66e2a91ccd7336611f30334119ca8ce300536666fcf4"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "openssl-sys"
 version = "0.9.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1260,6 +1272,7 @@ dependencies = [
  "autocfg",
  "cc",
  "libc",
+ "openssl-src",
  "pkg-config",
  "vcpkg",
 ]
@@ -2085,6 +2098,20 @@ dependencies = [
  "socket2",
  "tokio",
  "tokio-util",
+]
+
+[[package]]
+name = "tokio-postgres-rustls"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "606f2b73660439474394432239c82249c0d45eb5f23d91f401be1e33590444a7"
+dependencies = [
+ "futures",
+ "ring",
+ "rustls",
+ "tokio",
+ "tokio-postgres",
+ "tokio-rustls",
 ]
 
 [[package]]

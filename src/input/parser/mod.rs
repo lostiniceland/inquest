@@ -1,12 +1,12 @@
 use hocon::Hocon;
-use log::warn;
+use log::{error, warn};
 
 use crate::error::InquestError;
 use crate::input::parser::http::parse_http;
 use crate::input::parser::mssql::parse_mssql;
 use crate::input::parser::oracle::parse_oracle;
 use crate::input::parser::postgres::parse_postgres;
-use crate::Result;
+use crate::{Certificates, Result};
 use crate::{Config, ServiceSpecification, SqlTest};
 
 mod http;
@@ -17,6 +17,8 @@ mod postgres;
 pub fn parse(hocon: &Hocon) -> Result<Vec<ServiceSpecification>> {
     let root = &hocon["probe-specification"];
     // let options =
+
+    let certs = parse_global_certificates(root)?;
 
     let result = match root {
         Hocon::Hash(service) => service
@@ -40,7 +42,7 @@ pub fn parse(hocon: &Hocon) -> Result<Vec<ServiceSpecification>> {
                 };
                 http_present || oracle_present || postgres_present || mssql_present
             })
-            .filter_map(|(k, v)| parse_service(k, v).ok())
+            .filter_map(|(k, v)| parse_service(k, v, certs.clone()).ok())
             .collect::<Vec<ServiceSpecification>>(),
         _ => Default::default(),
     };
@@ -48,15 +50,45 @@ pub fn parse(hocon: &Hocon) -> Result<Vec<ServiceSpecification>> {
     Ok(result)
 }
 
-fn parse_service(service: &String, hocon: &Hocon) -> Result<ServiceSpecification> {
+fn parse_global_certificates(root: &Hocon) -> Result<Option<Certificates>> {
+    let clientCert = root["tls-client-certificate"].as_string();
+    let clientKey = root["tls-client-certificate-key"].as_string();
+    let clientPem = root["tls-client-certificate-pem"].as_string();
+    let caCert = root["tls-ca"].as_string();
+
+    if clientCert.as_ref().xor(clientKey.as_ref()).is_some() {
+        // both or none are valid
+        if clientCert.is_some() && clientKey.is_none() {
+            error!("Invalid TLS configuration. 'tls-client-certificate' without 'tls-client-certificate-key'");
+        } else {
+            error!("Invalid TLS configuration. 'tls-client-certificate-key' without 'tls-client-certificate'");
+        }
+        return Err(InquestError::ConfigurationError);
+    } else if clientCert.as_ref().and(clientKey.as_ref()).is_some() {
+        Ok(Some(Certificates::new(
+            clientCert.unwrap(),
+            clientKey.unwrap(),
+            clientPem,
+            caCert,
+        )))
+    } else {
+        Ok(None)
+    }
+}
+
+fn parse_service(
+    service: &String,
+    hocon: &Hocon,
+    certs: Option<Certificates>,
+) -> Result<ServiceSpecification> {
     let probe_configs = match &hocon {
         Hocon::Hash(s) => s
             .iter()
             .map(|(k, v)| match k.as_str() {
-                "http" => parse_http(v),
-                "postgres" => parse_postgres(v),
+                "http" => parse_http(v, certs.clone()),
+                "postgres" => parse_postgres(v, certs.clone()),
                 "oracle" => parse_oracle(v),
-                "mssql" => parse_mssql(v),
+                "mssql" => parse_mssql(v, certs.clone()),
                 other => {
                     warn!("Unrecognized Probe '{}' in '{}'", other, service);
                     Err(InquestError::ConfigurationError)
