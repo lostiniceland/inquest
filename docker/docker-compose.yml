@@ -51,8 +51,9 @@ services:
       - oracle
     command: >
       bash -c "
-      zypper --non-interactive install --auto-agree-with-licenses -y curl unzip postgresql python-pip libicu-devel
-      && pip install mssql-cli
+      zypper --non-interactive install --auto-agree-with-licenses -y curl unzip postgresql python39-pip libicu-devel
+      && ln -s /usr/bin/python3.9 /usr/bin/python
+      && pip3.9 install mssql-cli
       && curl -s -o /tmp/oracle-client.rpm https://download.oracle.com/otn_software/linux/instantclient/oracle-instantclient-basic-linuxx64.rpm
       && curl -s -o /tmp/oracle-sqlplus.rpm https://download.oracle.com/otn_software/linux/instantclient/oracle-instantclient-sqlplus-linuxx64.rpm
       && zypper --no-gpg-checks install --auto-agree-with-licenses -y /tmp/oracle-client.rpm
