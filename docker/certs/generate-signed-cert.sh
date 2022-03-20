@@ -23,7 +23,7 @@ if test -f "$CERT_FILE"; then
 fi;
 
 if ! $SKIP; then
-  export CERT_CN=localhost
+  export CERT_CN=$CERT_KEY_NAME
 
   echo Prepare Signing-Request-Config from Template
   cat signing-request.config.template | envsubst >> src.txt
