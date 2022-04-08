@@ -3,11 +3,7 @@
 == Prerequisites
 
 .Additional header-files
-[source,bash]
-----
-sudo zypper in openssl-devel
-----
-1. Openssl-headers required for TCP dependency
+None. Used to rely on openssl-devel but got rid of it by moving to rustls.
 
 == Integration Testing
 
@@ -36,6 +32,8 @@ cargo build --release --target x86_64-pc-windows-gnu # <1>
 1. Building `inquest.exe` to `target/x86_64-pc-windows-gnu/
 
 == Cross-Compiling Mac from Linux
+
+NOTE: Openssl should not be needed any more. Though docs have not been updated yet.
 
 CAUTION: After spending a weekend trying to cross-compile to OSX I learned that it actually seems to be forbidden to use the Apple SDKs on non-Apple-hardware according to their license agreement.
 Due to this fact, I am not cross-compiling this tool, but I keep this documentation around to preserve the knowledge (and time spent) in case Apple starts to apply some common sense in the future.

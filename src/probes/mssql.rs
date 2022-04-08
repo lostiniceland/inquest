@@ -9,7 +9,7 @@ use crate::error::InquestError::{
     AssertionMatchingError, FailedAssertionError, FailedExecutionError,
 };
 use crate::probes::sql::Table;
-use crate::Result;
+use crate::{Certificates, Result};
 use crate::{Data, GlobalOptions, MSSql, Probe, ProbeReport, SqlTest};
 use chrono::{DateTime, NaiveDateTime, NaiveTime, Utc};
 use std::io;
@@ -26,6 +26,7 @@ impl MSSql {
         password: SecretString,
         sql: Option<SqlTest>,
         options: &'static GlobalOptions,
+        certs: Option<Certificates>,
     ) -> MSSql {
         MSSql {
             options,
@@ -34,6 +35,7 @@ impl MSSql {
             user,
             password,
             sql,
+            certs,
         }
     }
 }
@@ -76,17 +78,32 @@ async fn establish_connection(
     redirect_port: Option<u16>,
 ) -> std::result::Result<Client<Compat<TcpStream>>, tiberius::error::Error> {
     let mut config = Config::new();
-    config.trust_cert();
+    // config.trust_cert();
     config.authentication(AuthMethod::sql_server(
         &probe.user,
         &probe.password.expose_secret(),
     ));
+    if let Some(cert_options) = &probe.certs {
+        if let Some(ca_cert_path) = &cert_options.ca_cert {
+            config.trust_cert_ca(ca_cert_path);
+        }
+
+        if cert_options.client_cert.is_some()
+            || cert_options.client_key.is_some()
+            || cert_options.client_pem.is_some()
+        {
+            // TODO use proper logging/eventing
+            println!("MTLS currently not supported by MSSQL driver");
+        }
+    }
+
     // in case we have receive a redirect-error on the first attempt, use the redirect-options
     // instead of the probe-values
     config.host(redirect_host.unwrap_or(probe.host.clone()));
     config.port(redirect_port.unwrap_or(probe.port));
 
     let tcp = TcpStream::connect(config.get_addr()).await?;
+    // let stream = async_native_tls::connect(config.get_addr(), tcp).await?;
     tcp.set_nodelay(true)?;
 
     // we should not have more than one redirect, so we'll short-circuit here.
@@ -273,6 +290,7 @@ mod tests {
             SecretString::from_str("password").unwrap(),
             None,
             &GO,
+            None,
         );
 
         assert_eq!("localhost", &probe.host);

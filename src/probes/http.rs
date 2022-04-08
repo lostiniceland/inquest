@@ -6,10 +6,10 @@ use url::Url;
 use crate::error::InquestError::{AssertionMatchingError, FailedExecutionError};
 use crate::{Certificates, Result};
 use crate::{GlobalOptions, Http, Probe, ProbeReport};
-use std::io;
 use std::io::Read;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::vec;
+use std::{fs, io};
 
 const PROBE_NAME: &'static str = "HTTP";
 
@@ -44,16 +44,16 @@ impl Probe for Http {
 fn build_client(config: &Http) -> Result<Client> {
     let mut cb = Client::builder();
     cb = cb.timeout(config.options.timeout);
-    if let Some(certOption) = &config.certs {
-        cb = cb.use_rustls_tls(); // important, otherwise certs not working
-                                  // Add CA-Cert if available
-        if let Some(cacert) = &certOption.caCert {
-            let mut buf = Vec::new();
-            File::open(cacert)?.read_to_end(&mut buf)?;
+    if let Some(cert_option) = &config.certs {
+        // important, otherwise certs not working
+        cb = cb.use_rustls_tls();
+        // Add CA-Cert if available
+        if let Some(cacert) = &cert_option.ca_cert {
+            let mut buf = fs::read(cacert)?;
             cb = cb.add_root_certificate(Certificate::from_pem(&buf)?);
         }
         // Add Client-Cert if available
-        if let Some(client_pem) = &certOption.clientPem {
+        if let Some(client_pem) = &cert_option.client_pem {
             let mut buf = Vec::new();
             File::open(client_pem)?.read_to_end(&mut buf)?;
             cb = cb.identity(Identity::from_pem(&buf)?);

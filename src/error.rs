@@ -61,6 +61,15 @@ pub enum InquestError {
 
     #[error(transparent)]
     ReqwestError(#[from] reqwest::Error),
+
+    #[error(transparent)]
+    TokioPostgresError(#[from] tokio_postgres::Error),
+
+    #[error(transparent)]
+    WebPkiError(#[from] webpki::Error),
+
+    #[error(transparent)]
+    RustlsError(#[from] rustls::Error),
 }
 
 pub struct DiagnosticReport {}

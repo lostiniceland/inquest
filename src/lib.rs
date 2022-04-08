@@ -70,10 +70,10 @@ pub(crate) struct GlobalOptions {
 
 #[derive(Debug, Clone)]
 pub(crate) struct Certificates {
-    pub(crate) clientCert: String,
-    pub(crate) clientKey: String,
-    pub(crate) clientPem: Option<String>,
-    pub(crate) caCert: Option<String>,
+    pub(crate) client_cert: Option<String>,
+    pub(crate) client_key: Option<String>,
+    pub(crate) client_pem: Option<String>,
+    pub(crate) ca_cert: Option<String>,
 }
 
 /// Configuration options for a HTTP probe
@@ -125,16 +125,16 @@ pub(crate) struct MSSql {
 
 impl Certificates {
     pub(crate) fn new(
-        clientCert: String,
-        clientKey: String,
-        clientPem: Option<String>,
-        caCert: Option<String>,
+        client_cert: Option<String>,
+        client_key: Option<String>,
+        client_pem: Option<String>,
+        ca_cert: Option<String>,
     ) -> Certificates {
         Certificates {
-            clientCert,
-            clientKey,
-            clientPem,
-            caCert,
+            client_cert,
+            client_key,
+            client_pem,
+            ca_cert,
         }
     }
 }

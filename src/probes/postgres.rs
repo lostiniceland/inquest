@@ -1,16 +1,19 @@
-use postgres::{Client, NoTls};
 use secrecy::{ExposeSecret, SecretString};
 
 use crate::error::InquestError::{
     AssertionMatchingError, FailedAssertionError, FailedExecutionError,
 };
 use crate::probes::sql::Table;
-use crate::Result;
+use crate::{Certificates, Result};
 use crate::{Data, GlobalOptions, Postgres, Probe, ProbeReport, SqlTest};
 use chrono::Utc;
-use std::io;
+use rustls::RootCertStore;
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
 use std::vec;
+use std::{fs, io};
+use tokio::runtime::Runtime;
+use tokio_postgres::{Client, Config, Connection, Error, Socket};
+use tokio_postgres_rustls::RustlsStream;
 
 const PROBE_NAME: &'static str = "Postgres";
 
@@ -23,6 +26,7 @@ impl Postgres {
         password: SecretString,
         sql: Option<SqlTest>,
         options: &'static GlobalOptions,
+        certs: Option<Certificates>,
     ) -> Postgres {
         Postgres {
             options,
@@ -32,6 +36,7 @@ impl Postgres {
             database: database.unwrap_or("postgres".to_string()),
             password,
             sql,
+            certs,
         }
     }
 }
@@ -39,17 +44,34 @@ impl Postgres {
 /// Implements a Postgres probe based on the postgres crate.
 impl Probe for Postgres {
     fn execute(&self) -> Result<ProbeReport> {
-        let mut client = establish_connection(self)?;
+        let future = async {
+            match establish_connection(self).await {
+                Ok((client, con)) => Ok((client, con)),
+                Err(e) => Err(e),
+            }
+        };
+        let tokio_runtime = Runtime::new().unwrap();
+        let mut client_con = tokio_runtime
+            .block_on(future)
+            .map_err(|e| FailedExecutionError {
+                probe_identifier: self.identifier(),
+                source: Box::new(e),
+            })?;
+
+        // The connection object performs the actual communication with the database,
+        // so spawn it off to run on its own.
+        let handle = tokio_runtime.spawn(async move {
+            if let Err(e) = client_con.1.await {
+                eprintln!("connection error: {}", e);
+            }
+        });
+
         // connection was successful
         let mut report = ProbeReport::new(self.identifier());
 
-        match run_sql(&self, &mut client, &mut report) {
-            Ok(data) => {
-                report.data.extend(data);
-                Ok(report)
-            }
-            Err(e) => Err(e),
-        }
+        tokio_runtime.block_on(run_sql(&self, &mut client_con.0, &mut report))?;
+        handle.abort(); // kill the connection-thread
+        Ok(report)
     }
 
     fn identifier(&self) -> String {
@@ -60,31 +82,89 @@ impl Probe for Postgres {
     }
 }
 
-fn establish_connection(probe: &Postgres) -> Result<Client> {
-    Client::configure()
+async fn establish_connection(
+    probe: &Postgres,
+) -> Result<(Client, Connection<Socket, RustlsStream<Socket>>)> {
+    let mut root_store = rustls::RootCertStore::empty();
+    // root_store.add_server_trust_anchors(webpki_roots::TLS_SERVER_ROOTS.0.iter().map(|ta| {
+    //     rustls::OwnedTrustAnchor::from_subject_spki_name_constraints(
+    //         ta.subject,
+    //         ta.spki,
+    //         ta.name_constraints,
+    //     )
+    // }));
+
+    for cert in rustls_native_certs::load_native_certs().expect("could not load platform certs") {
+        root_store.add(&rustls::Certificate(cert.0)).unwrap();
+    }
+
+    let tls_client_config = if let Some(cert_options) = &probe.certs {
+        if let Some(ca_cert_path) = &cert_options.ca_cert {
+            let ca_certs = certs::load_certificate_chain(ca_cert_path, probe)?;
+            ca_certs
+                .iter()
+                .try_for_each(|ca| root_store.add(ca))?
+                // .map_err(|e| FailedExecutionError {
+                //     probe_identifier: probe.identifier(),
+                //     source: Box::new(e),
+                // })?
+                ;
+        }
+
+        if let (Some(client_key), Some(client_cert)) =
+            (&cert_options.client_key, &cert_options.client_cert)
+        {
+            let certs = certs::load_certificate_chain(client_cert, probe)?;
+            let private_key = certs::load_private_key(client_key, probe)?;
+            rustls::ClientConfig::builder()
+                .with_safe_defaults()
+                .with_root_certificates(root_store)
+                .with_single_cert(certs, private_key)?
+            // .map_err(|e| FailedExecutionError {
+            //     probe_identifier: probe.identifier(),
+            //     source: Box::new(e),
+            // })?
+        } else {
+            rustls::ClientConfig::builder()
+                .with_safe_defaults()
+                .with_root_certificates(root_store)
+                .with_no_client_auth()
+        }
+    } else {
+        rustls::ClientConfig::builder()
+            .with_safe_defaults()
+            .with_root_certificates(RootCertStore::empty())
+            .with_no_client_auth()
+    };
+
+    let tls = tokio_postgres_rustls::MakeRustlsConnect::new(tls_client_config);
+    Config::new()
         .host(&probe.host)
         .port(probe.port)
         .user(&probe.user)
         .dbname(&probe.database)
         .password(&probe.password.expose_secret())
         .connect_timeout(probe.options.timeout)
-        .connect(NoTls)
+        .connect(tls)
+        .await
         .map_err(|e| FailedExecutionError {
             probe_identifier: probe.identifier(),
             source: Box::new(e),
         })
 }
 
-fn run_sql(probe: &Postgres, client: &mut Client, _: &mut ProbeReport) -> Result<Data> {
+async fn run_sql(probe: &Postgres, client: &mut Client, report: &mut ProbeReport) -> Result<()> {
     match &probe.sql {
         None => Ok(Default::default()),
         Some(sql) => {
-            let query_result = client.query(sql.query.as_str(), &[]);
+            println!("is client closed: {}", client.is_closed());
+            let query_result = client.query(sql.query.as_str(), &[]).await;
             match query_result {
                 Ok(rows) => {
                     let data: Data =
                         vec![("ResultSet".to_string(), format!("{}", Table::from(rows)))];
-                    Ok(data)
+                    report.data.extend(data);
+                    Ok(())
                 }
                 Err(e) => Err(FailedAssertionError {
                     probe_identifier: probe.identifier(),
@@ -251,6 +331,61 @@ impl ToSocketAddrs for Postgres {
     }
 }
 
+mod certs {
+    use crate::InquestError::FailedExecutionError;
+    use crate::Result;
+    use crate::{InquestError, Probe};
+    use std::io::Read;
+    use std::{fs, io};
+
+    pub(crate) fn load_certificate_chain(
+        ca_cert_path: &String,
+        probe: &dyn Probe,
+    ) -> Result<Vec<rustls::Certificate>> {
+        // Open certificate file.
+        let certfile = fs::File::open(ca_cert_path).map_err(|e| FailedExecutionError {
+            probe_identifier: probe.identifier(),
+            source: Box::new(e),
+        })?;
+        let mut reader = io::BufReader::new(certfile);
+
+        // Load and return certificate.
+        let certs = rustls_pemfile::certs(&mut reader).map_err(|e| FailedExecutionError {
+            probe_identifier: probe.identifier(),
+            source: Box::new(e),
+        })?;
+
+        Ok(certs.into_iter().map(rustls::Certificate).collect())
+    }
+
+    pub(crate) fn load_private_key(
+        filename: &str,
+        probe: &dyn Probe,
+    ) -> Result<rustls::PrivateKey> {
+        // Open keyfile.
+        let keyfile = fs::File::open(filename).map_err(|e| FailedExecutionError {
+            probe_identifier: probe.identifier(),
+            source: Box::new(e),
+        })?;
+        let mut reader = io::BufReader::new(keyfile);
+        // Load and return a single private key.
+        let keys =
+            rustls_pemfile::pkcs8_private_keys(&mut reader).map_err(|e| FailedExecutionError {
+                probe_identifier: probe.identifier(),
+                source: Box::new(e),
+            })?;
+        if keys.len() != 1 {
+            return Err(InquestError::EmptySource);
+        }
+
+        Ok(rustls::PrivateKey(keys[0].clone()))
+
+        // let mut data = Vec::new();
+        // keyfile.read_to_end(&mut data)?;
+        // Ok(rustls::PrivateKey(data))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{Postgres, GO};
@@ -267,6 +402,7 @@ mod tests {
             SecretString::from_str("password").unwrap(),
             None,
             &GO,
+            None,
         );
 
         assert_eq!("localhost", &probe.host);

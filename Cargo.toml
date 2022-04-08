@@ -12,20 +12,24 @@ anyhow = "1.0"
 log = "0.4.*"
 stderrlog = "0.5.*"
 rustls = "0.20.*"
+webpki = "0.22.*"
+webpki-roots = "0.22.*"
+rustls-native-certs = "0.6.*"
+rustls-pemfile = "1.*"
 reqwest = { version="0.11.*", default-features = false, features=["blocking", "rustls", "rustls-tls-native-roots"]}
 url = "2.2.*" # used by reqwest anyways
 oracle = "0.5.*"
 postgres = {version="0.19.*", features=["with-serde_json-1","with-chrono-0_4", "with-bit-vec-0_6", "with-eui48-1", "with-uuid-1", "with-time-0_3", "with-geo-types-0_7"]}
-tokio-postgres-rustls = "0.9.*"
 bit-vec = "*"
 uuid = "1.*"
 eui48 = "1.*"
 geo-types = "0.7.*"
 bigdecimal = "0.3.0"
 tiberius = {version="0.9.*", default-features=false, features=["tds73", "rustls", "chrono", "time", "bigdecimal"]}
-tokio = "1.9.*"
-tokio-util = "0.6.*"
-tokio-postgres = "0.7.0 " # needed for error-mapping from postgres-crate
+tokio = "1.19.*"
+tokio-util = "0.7.*"
+tokio-postgres = "0.7.*"
+tokio-postgres-rustls = "0.9.*"
 hocon = { version = "0.9.*" }
 secrecy = "0.7.0"
 aes = "0.6.0"
@@ -37,8 +41,6 @@ async-std = "1.11.*"
 chrono = "0.4.*"
 time = "0.3.*"
 serde_json = "1.*"
-
-async-native-tls = "0.4.0"
 
 [dev-dependencies]
 assert_matches = "1.5"

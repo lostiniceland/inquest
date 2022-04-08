@@ -51,25 +51,25 @@ pub fn parse(hocon: &Hocon) -> Result<Vec<ServiceSpecification>> {
 }
 
 fn parse_global_certificates(root: &Hocon) -> Result<Option<Certificates>> {
-    let clientCert = root["tls-client-certificate"].as_string();
-    let clientKey = root["tls-client-certificate-key"].as_string();
-    let clientPem = root["tls-client-certificate-pem"].as_string();
-    let caCert = root["tls-ca"].as_string();
+    let client_cert = root["tls-client-certificate"].as_string();
+    let client_key = root["tls-client-certificate-key"].as_string();
+    let client_pem = root["tls-client-certificate-pem"].as_string();
+    let ca_cert = root["tls-ca"].as_string();
 
-    if clientCert.as_ref().xor(clientKey.as_ref()).is_some() {
+    if client_cert.as_ref().xor(client_key.as_ref()).is_some() {
         // both or none are valid
-        if clientCert.is_some() && clientKey.is_none() {
+        if client_cert.is_some() && client_key.is_none() {
             error!("Invalid TLS configuration. 'tls-client-certificate' without 'tls-client-certificate-key'");
         } else {
             error!("Invalid TLS configuration. 'tls-client-certificate-key' without 'tls-client-certificate'");
         }
         return Err(InquestError::ConfigurationError);
-    } else if clientCert.as_ref().and(clientKey.as_ref()).is_some() {
+    } else if client_cert.as_ref().and(client_key.as_ref()).is_some() {
         Ok(Some(Certificates::new(
-            clientCert.unwrap(),
-            clientKey.unwrap(),
-            clientPem,
-            caCert,
+            client_cert,
+            client_key,
+            client_pem,
+            ca_cert,
         )))
     } else {
         Ok(None)
