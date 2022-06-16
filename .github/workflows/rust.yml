@@ -50,7 +50,7 @@ jobs:
           DOCKER_BUILDKIT=1 docker-compose up -d
 
       - name: "Run Integration-Tests"
-        run: sleep 90 && cargo test --test integration --verbose
+        run: sleep 180 && cargo test --test integration --verbose
 
       - name: "Check Container Logs"
         if: failure()
