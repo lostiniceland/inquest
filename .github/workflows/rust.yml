@@ -12,7 +12,7 @@ env:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v2
@@ -47,13 +47,13 @@ jobs:
       - name: "Startup Databases via Docker"
         run: |
           cd docker
-          DOCKER_BUILDKIT=1 docker-compose up -d
+          DOCKER_BUILDKIT=1 docker compose up --quiet-pull -d
 
       - name: "Run Integration-Tests"
-        run: sleep 180 && cargo test --test integration --verbose
+        run: sleep 90 && cargo test --test integration --verbose
 
       - name: "Check Container Logs"
         if: failure()
         run: |
           cd docker
-          docker-compose logs
+          docker compose logs
