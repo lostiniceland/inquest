@@ -36,19 +36,19 @@ https://github.com/lightbend/config/blob/master/HOCON.md[Hocon] specification.
 // https://gist.github.com/dcode/0cfbf2699a1fe9b46ff04c41721dda74
 [source,hocon]
 ----
-probe-specification {
+# showcasing variable substitution in HOCON
+httpbin = "https://httpbin.org"
 
- # showcasing variable substitution in HOCON
- httpbin = "https://httpbin.org"
+probe-specification {
 
  my-service {
 
   http = [
       {
-        url = "${httpbin}/get"
+        url = ${httpbin}/get
       },
       {
-        url = "${httpbin}/status/201 "
+        url = ${httpbin}/status/201
         status = 201
       }
     ]
