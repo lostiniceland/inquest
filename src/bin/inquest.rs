@@ -2,10 +2,10 @@
 extern crate clap;
 
 use std::fmt::{Display, Formatter};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use clap::{App, Arg, SubCommand};
+use clap::{arg, command, value_parser, Arg, ArgAction, Command};
 use secrecy::SecretString;
 
 use libinquest::crypto::encrypt_secret;
@@ -26,49 +26,54 @@ fn main() {
 }
 
 fn run() -> Result<(), anyhow::Error> {
-    let matches = App::new("Inquest")
-        .author(crate_authors!())
-        .version(crate_version!())
-        .about(crate_description!())
-        .arg(
-            Arg::with_name("key")
-                .help("Use a custom crypto-key. Must be between 10-32 characters long.")
-                .long("key")
-                .short("k")
-                .global(true)
-                .takes_value(true),
-        )
-        .arg(Arg::with_name("config").help("Location of the configuration to use."))
-        .subcommand(
-            SubCommand::with_name("encrypt")
-                .help("Encrypt a string to be used in specification")
-                .arg(Arg::with_name("password")),
-        )
-        .get_matches();
+    let matches = cli().get_matches();
 
-    let key = matches.value_of("key");
+    let key = matches.get_one::<String>("key");
 
     let mut x = std::env::current_dir()?;
     let config = matches
-        .value_of("config")
+        .get_one::<String>("config")
         .map(|path| std::path::Path::new(path))
         .unwrap_or({
             x.push("default.conf");
             x.as_path()
         });
 
-    if let ("encrypt", Some(arg)) = matches.subcommand() {
-        command_encrypt(
-            arg.value_of("password").unwrap().to_string(),
+    match matches.subcommand() {
+        Some(("encrypt", sub_matches)) => command_encrypt(
+            sub_matches
+                .get_one::<String>("password")
+                .unwrap()
+                .to_string(),
             key.map(|k| SecretString::new(k.to_string())),
         )
-        .context("Unable to encrypt secret")
-    } else {
-        command_execute(config).context(format!(
+        .context("Unable to encrypt secret"),
+        _ => command_execute(config).context(format!(
             "Unable to run with configuration '{}'",
             config.display()
-        ))
+        )),
     }
+}
+
+fn cli() -> Command {
+    command!()
+        .author(crate_authors!())
+        .version(crate_version!())
+        .about(crate_description!())
+        .arg(
+            Arg::new("key")
+                .help("Use a custom crypto-key. Must be between 10-32 characters long.")
+                .long("key")
+                .short('k')
+                .global(true)
+                .num_args(1),
+        )
+        .arg(Arg::new("config").help("Location of the configuration to use."))
+        .subcommand(
+            Command::new("encrypt")
+                .about("Encrypt a string to be used in specification")
+                .arg(Arg::new("password")),
+        )
 }
 
 fn command_encrypt(s: String, key: Option<SecretString>) -> Result<()> {
