@@ -1,6 +1,11 @@
 use std::str::FromStr;
 
 use aes::Aes256;
+use base64::{
+    alphabet,
+    engine::{self, general_purpose},
+    Engine as _,
+};
 use block_modes::block_padding::Iso7816;
 use block_modes::{BlockMode, Cbc};
 use secrecy::{ExposeSecret, SecretString};
@@ -19,6 +24,9 @@ type Aes256Cbc = Cbc<Aes256, Iso7816>;
 struct AesCrypto {
     cipher: Aes256Cbc,
 }
+
+const CUSTOM_ENGINE: engine::GeneralPurpose =
+    engine::GeneralPurpose::new(&alphabet::STANDARD, general_purpose::PAD);
 
 impl AesCrypto {
     /// Initializes the AesCrypto struct with a ready-to-use cipher.
@@ -58,7 +66,7 @@ impl AesCrypto {
     /// Encrypt the given String to a byte-array. The result will not be well-formed UTF-8,
     /// so it cannot be converted to String or &str.
     fn encrypt(self, text: SecretString) -> Vec<u8> {
-        self.cipher.encrypt_vec(&text.expose_secret().as_bytes())
+        self.cipher.encrypt_vec(text.expose_secret().as_bytes())
     }
 
     /// Decrypts the given byte-array back to another byte-array. The result, if used with the proper
@@ -72,14 +80,15 @@ impl AesCrypto {
 /// in order to have a well-formed UTF-8 String to return
 pub fn encrypt(text: SecretString, key: Option<SecretString>) -> Result<String> {
     let crypto = AesCrypto::new(key);
-    Ok(base64::encode(crypto?.encrypt(text)))
+    Ok(CUSTOM_ENGINE.encode(crypto?.encrypt(text).as_slice()))
 }
 
 /// Decrypts the given String by first reverting the Base64 encoding to the former bytes which
 /// are then decrypted with the former AES Block-Cypher
 pub fn decrypt(encrypted: String, key: Option<SecretString>) -> Result<String> {
     let crypto = AesCrypto::new(key);
-    let text = crypto?.decrypt(base64::decode(encrypted)?);
+    let a = CUSTOM_ENGINE.decode(encrypted)?;
+    let text = crypto?.decrypt(a);
     Ok(String::from_utf8(text?)?)
 }
 

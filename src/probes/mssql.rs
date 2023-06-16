@@ -61,7 +61,7 @@ impl Probe for MSSql {
             })?;
         let mut report = ProbeReport::new(self.identifier());
 
-        tokio_runtime.block_on(run_sql(&self, &mut client, &mut report))?;
+        tokio_runtime.block_on(run_sql(self, &mut client, &mut report))?;
         Ok(report)
     }
 
@@ -81,7 +81,7 @@ async fn establish_connection(
     // config.trust_cert();
     config.authentication(AuthMethod::sql_server(
         &probe.user,
-        &probe.password.expose_secret(),
+        probe.password.expose_secret(),
     ));
     if let Some(cert_options) = &probe.certs {
         if let Some(ca_cert_path) = &cert_options.ca_cert {
@@ -152,18 +152,19 @@ impl<'set> From<Vec<tiberius::Row>> for Table {
         // inlines copied from tiberius::tds:time::chrono
         #[inline]
         fn from_days(days: i64, start_year: i32) -> chrono::NaiveDate {
-            chrono::NaiveDate::from_ymd(start_year, 1, 1) + chrono::Duration::days(days as i64)
+            chrono::NaiveDate::from_ymd_opt(start_year, 1, 1).unwrap()
+                + chrono::Duration::days(days)
         }
 
         #[inline]
         fn from_sec_fragments(sec_fragments: i64) -> chrono::NaiveTime {
-            chrono::NaiveTime::from_hms(0, 0, 0)
+            chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()
                 + chrono::Duration::nanoseconds(sec_fragments * (1e9 as i64) / 300)
         }
 
         #[inline]
         fn from_mins(mins: u32) -> chrono::NaiveTime {
-            chrono::NaiveTime::from_num_seconds_from_midnight(mins, 0)
+            chrono::NaiveTime::from_num_seconds_from_midnight_opt(mins, 0).unwrap()
         }
 
         // #[inline]
@@ -217,7 +218,7 @@ impl<'set> From<Vec<tiberius::Row>> for Table {
                         .map(|dt| {
                             let datetime = NaiveDateTime::new(
                                 from_days(dt.date().days() as i64, 1),
-                                NaiveTime::from_hms(0, 0, 0)
+                                NaiveTime::from_hms_opt(0, 0, 0).unwrap()
                                     + chrono::Duration::nanoseconds(
                                         dt.time().increments() as i64
                                             * 10i64.pow(9 - dt.time().scale() as u32),
@@ -232,7 +233,7 @@ impl<'set> From<Vec<tiberius::Row>> for Table {
                             let ns = dto.datetime2().time().increments() as i64
                                 * 10i64.pow(9 - dto.datetime2().time().scale() as u32);
 
-                            let time = NaiveTime::from_hms(0, 0, 0)
+                            let time = NaiveTime::from_hms_opt(0, 0, 0).unwrap()
                                 + chrono::Duration::nanoseconds(ns)
                                 - chrono::Duration::minutes(dto.offset() as i64);
                             let naive = NaiveDateTime::new(date, time);
@@ -253,8 +254,8 @@ impl<'set> From<Vec<tiberius::Row>> for Table {
                     ColumnData::Time(ref val) => val
                         .map(|time| {
                             let ns = time.increments() as i64 * 10i64.pow(9 - time.scale() as u32);
-                            let time =
-                                NaiveTime::from_hms(0, 0, 0) + chrono::Duration::nanoseconds(ns);
+                            let time = NaiveTime::from_hms_opt(0, 0, 0).unwrap()
+                                + chrono::Duration::nanoseconds(ns);
                             format!("{}", time.format("%H:%M:%S"))
                         })
                         .unwrap_or_default(),

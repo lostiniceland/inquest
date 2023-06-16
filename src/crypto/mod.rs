@@ -5,7 +5,7 @@ use crate::Result;
 
 mod aes;
 
-const VAULT_PREFIX: &'static str = "!vault |";
+const VAULT_PREFIX: &str = "!vault |";
 
 /// TODO
 pub enum VaultTypes {

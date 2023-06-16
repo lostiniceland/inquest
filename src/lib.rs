@@ -43,10 +43,10 @@ pub struct ProbeReport {
 
 impl ProbeReport {
     pub(crate) fn new(probe_identifier: String) -> ProbeReport {
-        return ProbeReport {
+        ProbeReport {
             probe_identifier,
             data: Default::default(),
-        };
+        }
     }
 }
 

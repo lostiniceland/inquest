@@ -33,7 +33,7 @@ fn run() -> Result<(), anyhow::Error> {
     let mut x = std::env::current_dir()?;
     let config = matches
         .get_one::<String>("config")
-        .map(|path| std::path::Path::new(path))
+        .map(std::path::Path::new)
         .unwrap_or({
             x.push("default.conf");
             x.as_path()
@@ -88,11 +88,11 @@ fn command_execute(config: &Path) -> Result<()> {
         Ok((reports, failures)) => {
             let reports = reports
                 .iter()
-                .map(|r| ReportDisplay(r))
+                .map(ReportDisplay)
                 .collect::<Vec<ReportDisplay<ProbeReport>>>();
             let failures = failures
                 .iter()
-                .map(|e| ErrorDisplay(e))
+                .map(ErrorDisplay)
                 .collect::<Vec<ErrorDisplay<InquestError>>>();
             if let Some(mut terminal) = term::stdout() {
                 for failure in failures {

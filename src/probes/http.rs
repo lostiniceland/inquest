@@ -11,7 +11,7 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use std::vec;
 use std::{fs, io};
 
-const PROBE_NAME: &'static str = "HTTP";
+const PROBE_NAME: &str = "HTTP";
 
 impl Http {
     pub fn new(
@@ -37,7 +37,7 @@ impl Probe for Http {
         validate_result(client.get(self.url.as_str()).send(), self)
     }
     fn identifier(&self) -> String {
-        format!("{} - {}", PROBE_NAME, self.url.to_string())
+        format!("{} - {}", PROBE_NAME, self.url)
     }
 }
 
@@ -49,7 +49,7 @@ fn build_client(config: &Http) -> Result<Client> {
         cb = cb.use_rustls_tls();
         // Add CA-Cert if available
         if let Some(cacert) = &cert_option.ca_cert {
-            let mut buf = fs::read(cacert)?;
+            let buf = fs::read(cacert)?;
             cb = cb.add_root_certificate(Certificate::from_pem(&buf)?);
         }
         // Add Client-Cert if available

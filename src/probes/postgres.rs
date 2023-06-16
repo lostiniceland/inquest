@@ -8,11 +8,11 @@ use crate::{Certificates, Result};
 use crate::{Data, GlobalOptions, Postgres, Probe, ProbeReport, SqlTest};
 use chrono::Utc;
 use rustls::RootCertStore;
+use std::io;
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
 use std::vec;
-use std::{fs, io};
 use tokio::runtime::Runtime;
-use tokio_postgres::{Client, Config, Connection, Error, Socket};
+use tokio_postgres::{Client, Config, Connection, Socket};
 use tokio_postgres_rustls::RustlsStream;
 
 const PROBE_NAME: &'static str = "Postgres";
@@ -143,7 +143,7 @@ async fn establish_connection(
         .port(probe.port)
         .user(&probe.user)
         .dbname(&probe.database)
-        .password(&probe.password.expose_secret())
+        .password(probe.password.expose_secret())
         .connect_timeout(probe.options.timeout)
         .connect(tls)
         .await
@@ -335,7 +335,6 @@ mod certs {
     use crate::InquestError::FailedExecutionError;
     use crate::Result;
     use crate::{InquestError, Probe};
-    use std::io::Read;
     use std::{fs, io};
 
     pub(crate) fn load_certificate_chain(

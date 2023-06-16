@@ -43,7 +43,7 @@ impl Probe for Oracle {
         let connection = establish_connection(self)?;
         let mut report = ProbeReport::new(self.identifier());
 
-        match run_sql(&self, &connection, &mut report) {
+        match run_sql(self, &connection, &mut report) {
             Ok(data) => {
                 report.data.extend(data);
                 Ok(report)
@@ -64,8 +64,8 @@ fn establish_connection(probe: &Oracle) -> Result<Connection> {
     let connection_string = format!("//{}:{}/{}", &probe.host, &probe.port, &probe.sid);
     let r = Connection::connect(
         &probe.user,
-        &probe.password.expose_secret(),
-        connection_string.clone(),
+        probe.password.expose_secret(),
+        connection_string,
     )
     .map_err(|e| FailedExecutionError {
         probe_identifier: probe.identifier(),
